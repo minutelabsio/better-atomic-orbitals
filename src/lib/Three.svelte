@@ -2,6 +2,7 @@
 import { setContext, onMount, type Snippet } from 'svelte'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import Stats from 'three/examples/jsm/libs/stats.module.js'
 
 let { children }: { children: Snippet } = $props()
 
@@ -33,6 +34,9 @@ onMount(() => {
   const controls = new OrbitControls(camera, canvas)
   controls.enableDamping = true
 
+  const stats = new Stats()
+  document.body.appendChild(stats.dom)
+
   const resizeObserver = new ResizeObserver(() => {
     const w = canvas.clientWidth
     const h = canvas.clientHeight
@@ -45,9 +49,11 @@ onMount(() => {
   let rafId: number
   const animate = () => {
     rafId = requestAnimationFrame(animate)
+    stats.begin()
     controls.update()
     for (const fn of frameCallbacks) fn()
     renderer.render(scene, camera)
+    stats.end()
   }
   animate()
 
@@ -56,6 +62,7 @@ onMount(() => {
     resizeObserver.disconnect()
     controls.dispose()
     renderer.dispose()
+    stats.dom.remove()
   }
 })
 </script>
