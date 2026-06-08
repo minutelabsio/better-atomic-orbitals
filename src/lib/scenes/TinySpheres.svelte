@@ -9,26 +9,31 @@ const { scene, onFrame } = getContext<{
 }>('three')
 
 // --- scene parameters ---
-const COUNT = 20000
-const CLUSTER_RADIUS = 1.5       // radius of the sphere volume they're distributed in
+const COUNT = 50000
+const CLUSTER_RADIUS = 1.2       // radius of the sphere volume they're distributed in
 const SPHERE_RADIUS = 0.012     // radius of each individual sphere
 const SPHERE_SEGMENTS = 7      // width segments (height = SPHERE_SEGMENTS - 2)
-const COLOR = new THREE.Color().setHSL(30/360, 1, 0.2819)
-const ROUGHNESS = .6
+const COLOR = new THREE.Color().setHSL(28/360, 1, 0.4819)
+const ROUGHNESS = .5
 const METALNESS = 0
 
 const ROTATION_SPEED = -0.001  // negative = clockwise from above; quadratic falloff below
 const SPEED_EPSILON = 0.1      // softens the 1/r² singularity near the Y axis
 
-const LIGHT_COLOR = new THREE.Color().setHSL(0, 0, 0.91)
+// Clip x < 0 — reveals the interior cross-section as spheres orbit the Y axis
+const CLIP_PLANE = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0)
+
+const BRIGHTNESS = 3.5
+const LIGHT_RATIO = 0.6
+const LIGHT_COLOR = new THREE.Color().setHSL(0.611, 0.333, 0.9)
 const DIR_LIGHT_COLOR = LIGHT_COLOR
-const DIR_LIGHT_INTENSITY = 3
+const DIR_LIGHT_INTENSITY = BRIGHTNESS * LIGHT_RATIO
 const DIR_LIGHT_POS = new THREE.Vector3(5, 8, 5)
 const SHADOW_MAP_SIZE = 2048
 const SHADOW_FRUSTUM = 2       // half-extent of the directional light shadow frustum
 
-const AMBIENT_COLOR = new THREE.Color().setHSL(0.611, 0.333, 0.3)
-const AMBIENT_INTENSITY = 6
+const AMBIENT_COLOR = LIGHT_COLOR
+const AMBIENT_INTENSITY = BRIGHTNESS * (1 - LIGHT_RATIO)
 // ------------------------
 
 onMount(() => {
@@ -48,7 +53,13 @@ onMount(() => {
   scene.add(ambientLight)
 
   const geometry = new THREE.SphereGeometry(SPHERE_RADIUS, SPHERE_SEGMENTS, SPHERE_SEGMENTS - 2)
-  const material = new THREE.MeshPhysicalMaterial({ color: COLOR, metalness: METALNESS, roughness: ROUGHNESS })
+  const material = new THREE.MeshPhysicalMaterial({
+    color: COLOR,
+    metalness: METALNESS,
+    roughness: ROUGHNESS,
+    clippingPlanes: [CLIP_PLANE],
+    clipShadows: true,
+  })
 
   const mesh = new THREE.InstancedMesh(geometry, material, COUNT)
 
