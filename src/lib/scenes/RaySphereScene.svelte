@@ -15,8 +15,7 @@ onMount(() => {
   const geometry = new THREE.PlaneGeometry(2, 2)
   const uniforms = {
     uCameraPos: { value: new THREE.Vector3() },
-    uProjectionMatrixInverse: { value: new THREE.Matrix4() },
-    uCameraMatrixWorld: { value: new THREE.Matrix4() },
+    uInvViewProj: { value: new THREE.Matrix4() },
   }
   const material = new THREE.ShaderMaterial({
     vertexShader,
@@ -30,10 +29,15 @@ onMount(() => {
   mesh.frustumCulled = false
   scene.add(mesh)
 
+  const invViewProj = new THREE.Matrix4()
+
   const unsubscribe = onFrame(() => {
+    // Force matrix to be current — renderer.render() hasn't run yet this frame
+    camera.updateMatrixWorld()
     uniforms.uCameraPos.value.copy(camera.position)
-    uniforms.uProjectionMatrixInverse.value.copy(camera.projectionMatrixInverse)
-    uniforms.uCameraMatrixWorld.value.copy(camera.matrixWorld)
+    // invViewProj = cameraMatrixWorld * projectionMatrixInverse
+    invViewProj.copy(camera.projectionMatrixInverse).premultiply(camera.matrixWorld)
+    uniforms.uInvViewProj.value.copy(invViewProj)
   })
 
   return () => {

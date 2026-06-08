@@ -2,8 +2,7 @@
 #pragma glslify: sphereIntersection = require(glsl-ray-sphere/rsi, Intersection=Intersection)
 
 uniform vec3 uCameraPos;
-uniform mat4 uProjectionMatrixInverse;
-uniform mat4 uCameraMatrixWorld;
+uniform mat4 uInvViewProj;
 
 varying vec2 vNDC;
 
@@ -12,9 +11,10 @@ const vec3 SPHERE_COLOR = vec3(0.85, 0.5, 0.2);
 const vec3 BG_COLOR = vec3(0.15, 0.15, 0.18);
 
 void main() {
-  // Reconstruct world-space ray from NDC
-  vec4 rayView = uProjectionMatrixInverse * vec4(vNDC, -1.0, 1.0);
-  vec3 rayDir = normalize((uCameraMatrixWorld * vec4(rayView.xy, -1.0, 0.0)).xyz);
+  // Unproject NDC point to world space, then derive ray direction
+  vec4 worldPos = uInvViewProj * vec4(vNDC, -1.0, 1.0);
+  worldPos /= worldPos.w;
+  vec3 rayDir = normalize(worldPos.xyz - uCameraPos);
 
   // Sphere at world origin, radius 1. Origin passed relative to sphere center.
   Intersection isect = sphereIntersection(uCameraPos, rayDir, 1.0);
