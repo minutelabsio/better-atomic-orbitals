@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      postprocessing:
+        specifier: ^6.39.1
+        version: 6.39.1(three@0.177.0)
       three:
         specifier: ^0.177.0
         version: 0.177.0
@@ -557,6 +560,11 @@ packages:
     resolution: {integrity: sha512-FfR8sjd4em2T6fb3I2MwAJU7HWVMr9zba+enmQeeWFfCbm+UOC/0X4DS8XtpUTMwWMGbjKYP7xjfNekzyGmB3A==}
     engines: {node: ^10 || ^12 || >=14}
 
+  postprocessing@6.39.1:
+    resolution: {integrity: sha512-R2dG2zy+BAx3USl5EHw+PvnrlbT5PKnZVp3se0HCR0pWH8WQdh742yNG4YWOsq6c0bFpffk0Gd2RqPeoP/wKng==}
+    peerDependencies:
+      three: '>= 0.168.0 < 0.185.0'
+
   readdirp@4.1.2:
     resolution: {integrity: sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg==}
     engines: {node: '>= 14.18.0'}
@@ -1000,6 +1008,10 @@ snapshots:
       nanoid: 3.3.12
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  postprocessing@6.39.1(three@0.177.0):
+    dependencies:
+      three: 0.177.0
 
   readdirp@4.1.2: {}
 

@@ -1,27 +1,46 @@
 <script lang="ts">
 import Three from './lib/Three.svelte'
-import SphericalCloud from './lib/scenes/SphericalCloud.svelte'
 import TinySpheres from './lib/scenes/TinySpheres.svelte'
 
 const scenes = [
-  { id: 'sphericalCloud', label: 'Spherical Cloud', component: SphericalCloud },
   { id: 'tinySpheres', label: 'Tiny Spheres', component: TinySpheres },
 ]
 
-let selectedIdx = $state(0)
-const selected = $derived(scenes[selectedIdx])
+const luts = [
+  { label: 'Bourbon 64',          path: '/luts/Bourbon 64.CUBE' },
+  { label: 'Faded 47',            path: '/luts/Faded 47.CUBE' },
+  { label: 'Remy 24',             path: '/luts/Remy 24.CUBE' },
+  { label: 'Clayton 33',          path: '/luts/Clayton 33.CUBE' },
+  { label: 'Chemical 168',        path: '/luts/Chemical 168.CUBE' },
+  { label: 'Cubicle 99',          path: '/luts/Cubicle 99.CUBE' },
+  { label: 'Presetpro Cinematic', path: '/luts/Presetpro-Cinematic.cube' },
+]
+
+let selectedSceneIdx = $state(0)
+let selectedLutIdx = $state(0)
+
+const selected = $derived(scenes[selectedSceneIdx])
+const lutPath = $derived(luts[selectedLutIdx].path)
 </script>
 
 <div class="app">
-  <Three>
+  <Three {lutPath}>
     <selected.component />
   </Three>
 
-  <select class="scene-selector" bind:value={selectedIdx}>
-    {#each scenes as scene, i}
-      <option value={i}>{scene.label}</option>
-    {/each}
-  </select>
+  <div class="controls">
+    <select bind:value={selectedSceneIdx}>
+      {#each scenes as scene, i}
+        <option value={i}>{scene.label}</option>
+      {/each}
+    </select>
+
+    <select bind:value={selectedLutIdx}>
+      {#each luts as lut, i}
+        <option value={i}>{lut.label}</option>
+      {/each}
+    </select>
+  </div>
 </div>
 
 <style>
@@ -30,11 +49,17 @@ const selected = $derived(scenes[selectedIdx])
     height: 100%;
   }
 
-  .scene-selector {
+  .controls {
     position: fixed;
     top: 1rem;
     right: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
     z-index: 10;
+  }
+
+  select {
     background: rgba(10, 10, 20, 0.75);
     color: #aac8e0;
     border: 1px solid rgba(100, 160, 220, 0.35);

@@ -2,9 +2,11 @@
 import { setContext, onMount, type Snippet } from 'svelte'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { LUTCubeLoader } from 'three/examples/jsm/loaders/LUTCubeLoader.js'
 import Stats from 'three/examples/jsm/libs/stats.module.js'
+import { EffectComposer, RenderPass, EffectPass, LUT3DEffect } from 'postprocessing'
 
-let { children }: { children: Snippet } = $props()
+let { children, lutPath }: { children: Snippet; lutPath: string } = $props()
 
 const scene = new THREE.Scene()
 scene.background = new THREE.Color().setHSL(0, 0, 0.91)
@@ -30,6 +32,29 @@ onMount(() => {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  renderer.localClippingEnabled = true
+  renderer.outputColorSpace = THREE.SRGBColorSpace
+
+  const composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType })
+  composer.addPass(new RenderPass(scene, camera))
+
+  const loader = new LUTCubeLoader()
+  let lutEffect: LUT3DEffect | undefined
+
+  // Reactively load/swap the LUT whenever lutPath changes
+  const stopEffects = $effect.root(() => {
+    $effect(() => {
+      const path = lutPath
+      loader.loadAsync(path).then((result: { texture3D: THREE.Data3DTexture }) => {
+        if (lutEffect) {
+          lutEffect.lut = result.texture3D
+        } else {
+          lutEffect = new LUT3DEffect(result.texture3D, { tetrahedralInterpolation: true })
+          composer.addPass(new EffectPass(camera, lutEffect))
+        }
+      })
+    })
+  })
 
   const controls = new OrbitControls(camera, canvas)
   controls.enableDamping = true
@@ -37,17 +62,13 @@ onMount(() => {
   const stats = new Stats()
   document.body.appendChild(stats.dom)
 
-  // Per the three.js manual, avoid setPixelRatio() and instead manually
-  // account for devicePixelRatio in the resize check. This keeps the actual
-  // drawingBuffer size predictable (no magic scaling behind the scenes) and
-  // also catches DPR changes (e.g. moving the window between monitors) since
-  // the check runs every frame.
   function resizeIfNeeded(): boolean {
     const dpr = window.devicePixelRatio
     const w = Math.floor(canvas.clientWidth * dpr)
     const h = Math.floor(canvas.clientHeight * dpr)
     if (canvas.width === w && canvas.height === h) return false
     renderer.setSize(w, h, false)
+    composer.setSize(w, h)
     camera.aspect = canvas.clientWidth / canvas.clientHeight
     camera.updateProjectionMatrix()
     return true
@@ -60,14 +81,16 @@ onMount(() => {
     resizeIfNeeded()
     controls.update()
     for (const fn of frameCallbacks) fn()
-    renderer.render(scene, camera)
+    composer.render()
     stats.end()
   }
   animate()
 
   return () => {
+    stopEffects()
     cancelAnimationFrame(rafId)
     controls.dispose()
+    composer.dispose()
     renderer.dispose()
     stats.dom.remove()
   }
