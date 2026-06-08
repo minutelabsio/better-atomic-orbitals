@@ -1,6 +1,7 @@
 <script lang="ts">
 import { getContext, onMount } from 'svelte'
 import * as THREE from 'three'
+import { lightingPresets } from './lightingPresets.js'
 
 const { scene, onFrame } = getContext<{
   scene: THREE.Scene
@@ -9,51 +10,38 @@ const { scene, onFrame } = getContext<{
 }>('three')
 
 // --- scene parameters ---
-const COUNT = 50000
+const COUNT = 30000
 const CLUSTER_RADIUS = 1.4 // radius of the sphere volume they're distributed in
 const SPHERE_RADIUS = 0.012 // radius of each individual sphere
 const SPHERE_SEGMENTS = 7 // width segments (height = SPHERE_SEGMENTS - 2)
 const COLOR = new THREE.Color().setHSL(28 / 360, 1, 0.4819)
 const ROUGHNESS = 0.5
-const METALNESS = 0
+const METALNESS = 0.5
 
 const ROTATION_SPEED = -0.001 // negative = clockwise from above; quadratic falloff below
 const SPEED_EPSILON = 0.1 // softens the 1/r² singularity near the Y axis
+const XZ_GAP = 0.08 // minimum |y| distance from xz plane — no spheres in this band
 
-// Clip x < 0 — reveals the interior cross-section as spheres orbit the Y axis
+// Clip z < 0 — reveals the interior cross-section as spheres orbit the Y axis
 const CLIP_PLANE = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0)
 
-const BRIGHTNESS = 3.5
-const LIGHT_RATIO = 0.6
-const LIGHT_COLOR = new THREE.Color().setHSL(0.611, 0.333, 0.9)
-const DIR_LIGHT_COLOR = LIGHT_COLOR
-const DIR_LIGHT_INTENSITY = BRIGHTNESS * LIGHT_RATIO
-const DIR_LIGHT_POS = new THREE.Vector3(5, 8, 5)
-const SHADOW_MAP_SIZE = 2048
-const SHADOW_FRUSTUM = 2 // half-extent of the directional light shadow frustum
-
-const AMBIENT_COLOR = LIGHT_COLOR
-const AMBIENT_INTENSITY = BRIGHTNESS * (1 - LIGHT_RATIO)
 // ------------------------
 
-onMount(() => {
-  const dirLight = new THREE.DirectionalLight(
-    DIR_LIGHT_COLOR,
-    DIR_LIGHT_INTENSITY,
-  )
-  dirLight.position.copy(DIR_LIGHT_POS)
-  dirLight.castShadow = true
-  dirLight.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE)
-  dirLight.shadow.camera.near = 0.1
-  dirLight.shadow.camera.far = 20
-  dirLight.shadow.camera.left = -SHADOW_FRUSTUM
-  dirLight.shadow.camera.right = SHADOW_FRUSTUM
-  dirLight.shadow.camera.top = SHADOW_FRUSTUM
-  dirLight.shadow.camera.bottom = -SHADOW_FRUSTUM
-  scene.add(dirLight)
+let { presetIdx = 0 }: { presetIdx?: number } = $props()
 
-  const ambientLight = new THREE.AmbientLight(AMBIENT_COLOR, AMBIENT_INTENSITY)
-  scene.add(ambientLight)
+onMount(() => {
+  const stopLighting = $effect.root(() => {
+    $effect(() => {
+      const group = lightingPresets[presetIdx]!.build()
+      scene.add(group)
+      return () => {
+        scene.remove(group)
+        group.traverse((obj) => {
+          if (obj instanceof THREE.DirectionalLight) obj.shadow.map?.dispose()
+        })
+      }
+    })
+  })
 
   const geometry = new THREE.SphereGeometry(
     SPHERE_RADIUS,
@@ -78,13 +66,15 @@ onMount(() => {
   const matrix = new THREE.Matrix4()
   const v = new THREE.Vector3()
   for (let i = 0; i < COUNT; i++) {
-    v.set(
-      THREE.MathUtils.randFloatSpread(2),
-      THREE.MathUtils.randFloatSpread(2),
-      THREE.MathUtils.randFloatSpread(2),
-    )
-    if (v.lengthSq() === 0) v.set(1, 0, 0)
-    v.normalize().multiplyScalar(CLUSTER_RADIUS * Math.cbrt(Math.random()))
+    do {
+      v.set(
+        THREE.MathUtils.randFloatSpread(2),
+        THREE.MathUtils.randFloatSpread(2),
+        THREE.MathUtils.randFloatSpread(2),
+      )
+      if (v.lengthSq() === 0) v.set(1, 0, 0)
+      v.normalize().multiplyScalar(CLUSTER_RADIUS * Math.cbrt(Math.random()))
+    } while (Math.abs(v.y) < XZ_GAP)
 
     const r = Math.sqrt(v.x * v.x + v.z * v.z)
     radii[i] = r
@@ -115,8 +105,9 @@ onMount(() => {
   })
 
   return () => {
+    stopLighting()
     unsubscribe()
-    scene.remove(mesh, dirLight, ambientLight)
+    scene.remove(mesh)
     geometry.dispose()
     material.dispose()
   }

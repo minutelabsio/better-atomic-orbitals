@@ -1,4 +1,5 @@
 <script lang="ts">
+import { lightingPresets } from './lib/scenes/lightingPresets.js'
 import TinySpheres from './lib/scenes/TinySpheres.svelte'
 import Three from './lib/Three.svelte'
 
@@ -18,6 +19,7 @@ const luts = [
 
 let selectedSceneIdx = $state(0)
 let selectedLutIdx = $state(0)
+let lightingPresetIdx = $state(0)
 
 const selected = $derived(scenes[selectedSceneIdx]!)
 const lutPath = $derived(luts[selectedLutIdx]!.path)
@@ -25,7 +27,7 @@ const lutPath = $derived(luts[selectedLutIdx]!.path)
 
 <div class="app">
   <Three {lutPath}>
-    <selected.component />
+    <selected.component presetIdx={lightingPresetIdx} />
   </Three>
 
   <div class="controls">
@@ -38,6 +40,12 @@ const lutPath = $derived(luts[selectedLutIdx]!.path)
     <select bind:value={selectedLutIdx}>
       {#each luts as lut, i}
         <option value={i}>{lut.label}</option>
+      {/each}
+    </select>
+
+    <select bind:value={lightingPresetIdx}>
+      {#each lightingPresets as preset, i}
+        <option value={i}>{preset.name}</option>
       {/each}
     </select>
   </div>
