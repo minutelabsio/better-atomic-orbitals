@@ -1,9 +1,18 @@
 <script lang="ts">
-import ThreeScene from './lib/ThreeScene.svelte'
+import Three from './lib/Three.svelte'
+import SphericalCloud from './lib/scenes/SphericalCloud.svelte'
+
+const scenes = {
+  sphericalCloud: SphericalCloud,
+}
+
+let selected = $state({ scene: scenes.sphericalCloud })
 </script>
 
 <div class="app">
-  <ThreeScene />
+  <Three>
+    <selected.scene />
+  </Three>
 </div>
 
 <style>
