@@ -28,7 +28,11 @@ onMount(() => {
 
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  const material = new THREE.PointsMaterial({ color: 0x66ccff, size: 0.04, sizeAttenuation: true })
+  const material = new THREE.PointsMaterial({
+    color: 0x66ccff,
+    size: 0.04,
+    sizeAttenuation: true,
+  })
   const points = new THREE.Points(geometry, material)
   scene.add(points)
 

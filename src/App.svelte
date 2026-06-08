@@ -1,26 +1,26 @@
 <script lang="ts">
-import Three from './lib/Three.svelte'
 import TinySpheres from './lib/scenes/TinySpheres.svelte'
+import Three from './lib/Three.svelte'
 
 const scenes = [
   { id: 'tinySpheres', label: 'Tiny Spheres', component: TinySpheres },
 ]
 
 const luts = [
-  { label: 'Bourbon 64',          path: '/luts/Bourbon 64.CUBE' },
-  { label: 'Faded 47',            path: '/luts/Faded 47.CUBE' },
-  { label: 'Remy 24',             path: '/luts/Remy 24.CUBE' },
-  { label: 'Clayton 33',          path: '/luts/Clayton 33.CUBE' },
-  { label: 'Chemical 168',        path: '/luts/Chemical 168.CUBE' },
-  { label: 'Cubicle 99',          path: '/luts/Cubicle 99.CUBE' },
+  { label: 'Bourbon 64', path: '/luts/Bourbon 64.CUBE' },
+  { label: 'Faded 47', path: '/luts/Faded 47.CUBE' },
+  { label: 'Remy 24', path: '/luts/Remy 24.CUBE' },
+  { label: 'Clayton 33', path: '/luts/Clayton 33.CUBE' },
+  { label: 'Chemical 168', path: '/luts/Chemical 168.CUBE' },
+  { label: 'Cubicle 99', path: '/luts/Cubicle 99.CUBE' },
   { label: 'Presetpro Cinematic', path: '/luts/Presetpro-Cinematic.cube' },
 ]
 
 let selectedSceneIdx = $state(0)
 let selectedLutIdx = $state(0)
 
-const selected = $derived(scenes[selectedSceneIdx])
-const lutPath = $derived(luts[selectedLutIdx].path)
+const selected = $derived(scenes[selectedSceneIdx]!)
+const lutPath = $derived(luts[selectedLutIdx]!.path)
 </script>
 
 <div class="app">

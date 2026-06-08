@@ -1,10 +1,15 @@
 <script lang="ts">
-import { setContext, onMount, type Snippet } from 'svelte'
+import {
+  EffectComposer,
+  EffectPass,
+  LUT3DEffect,
+  RenderPass,
+} from 'postprocessing'
+import { onMount, type Snippet, setContext } from 'svelte'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { LUTCubeLoader } from 'three/examples/jsm/loaders/LUTCubeLoader.js'
 import Stats from 'three/examples/jsm/libs/stats.module.js'
-import { EffectComposer, RenderPass, EffectPass, LUT3DEffect } from 'postprocessing'
+import { LUTCubeLoader } from 'three/examples/jsm/loaders/LUTCubeLoader.js'
 
 let { children, lutPath }: { children: Snippet; lutPath: string } = $props()
 
@@ -35,7 +40,9 @@ onMount(() => {
   renderer.localClippingEnabled = true
   renderer.outputColorSpace = THREE.SRGBColorSpace
 
-  const composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType })
+  const composer = new EffectComposer(renderer, {
+    frameBufferType: THREE.HalfFloatType,
+  })
   composer.addPass(new RenderPass(scene, camera))
 
   const loader = new LUTCubeLoader()
@@ -45,14 +52,18 @@ onMount(() => {
   const stopEffects = $effect.root(() => {
     $effect(() => {
       const path = lutPath
-      loader.loadAsync(path).then((result: { texture3D: THREE.Data3DTexture }) => {
-        if (lutEffect) {
-          lutEffect.lut = result.texture3D
-        } else {
-          lutEffect = new LUT3DEffect(result.texture3D, { tetrahedralInterpolation: true })
-          composer.addPass(new EffectPass(camera, lutEffect))
-        }
-      })
+      loader
+        .loadAsync(path)
+        .then((result: { texture3D: THREE.Data3DTexture }) => {
+          if (lutEffect) {
+            lutEffect.lut = result.texture3D
+          } else {
+            lutEffect = new LUT3DEffect(result.texture3D, {
+              tetrahedralInterpolation: true,
+            })
+            composer.addPass(new EffectPass(camera, lutEffect))
+          }
+        })
     })
   })
 

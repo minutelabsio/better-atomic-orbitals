@@ -10,15 +10,15 @@ const { scene, onFrame } = getContext<{
 
 // --- scene parameters ---
 const COUNT = 50000
-const CLUSTER_RADIUS = 1.4       // radius of the sphere volume they're distributed in
-const SPHERE_RADIUS = 0.012     // radius of each individual sphere
-const SPHERE_SEGMENTS = 7      // width segments (height = SPHERE_SEGMENTS - 2)
-const COLOR = new THREE.Color().setHSL(28/360, 1, 0.4819)
-const ROUGHNESS = .5
+const CLUSTER_RADIUS = 1.4 // radius of the sphere volume they're distributed in
+const SPHERE_RADIUS = 0.012 // radius of each individual sphere
+const SPHERE_SEGMENTS = 7 // width segments (height = SPHERE_SEGMENTS - 2)
+const COLOR = new THREE.Color().setHSL(28 / 360, 1, 0.4819)
+const ROUGHNESS = 0.5
 const METALNESS = 0
 
-const ROTATION_SPEED = -0.001  // negative = clockwise from above; quadratic falloff below
-const SPEED_EPSILON = 0.1      // softens the 1/r² singularity near the Y axis
+const ROTATION_SPEED = -0.001 // negative = clockwise from above; quadratic falloff below
+const SPEED_EPSILON = 0.1 // softens the 1/r² singularity near the Y axis
 
 // Clip x < 0 — reveals the interior cross-section as spheres orbit the Y axis
 const CLIP_PLANE = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0)
@@ -30,14 +30,17 @@ const DIR_LIGHT_COLOR = LIGHT_COLOR
 const DIR_LIGHT_INTENSITY = BRIGHTNESS * LIGHT_RATIO
 const DIR_LIGHT_POS = new THREE.Vector3(5, 8, 5)
 const SHADOW_MAP_SIZE = 2048
-const SHADOW_FRUSTUM = 2       // half-extent of the directional light shadow frustum
+const SHADOW_FRUSTUM = 2 // half-extent of the directional light shadow frustum
 
 const AMBIENT_COLOR = LIGHT_COLOR
 const AMBIENT_INTENSITY = BRIGHTNESS * (1 - LIGHT_RATIO)
 // ------------------------
 
 onMount(() => {
-  const dirLight = new THREE.DirectionalLight(DIR_LIGHT_COLOR, DIR_LIGHT_INTENSITY)
+  const dirLight = new THREE.DirectionalLight(
+    DIR_LIGHT_COLOR,
+    DIR_LIGHT_INTENSITY,
+  )
   dirLight.position.copy(DIR_LIGHT_POS)
   dirLight.castShadow = true
   dirLight.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE)
@@ -52,7 +55,11 @@ onMount(() => {
   const ambientLight = new THREE.AmbientLight(AMBIENT_COLOR, AMBIENT_INTENSITY)
   scene.add(ambientLight)
 
-  const geometry = new THREE.SphereGeometry(SPHERE_RADIUS, SPHERE_SEGMENTS, SPHERE_SEGMENTS - 2)
+  const geometry = new THREE.SphereGeometry(
+    SPHERE_RADIUS,
+    SPHERE_SEGMENTS,
+    SPHERE_SEGMENTS - 2,
+  )
   const material = new THREE.MeshPhysicalMaterial({
     color: COLOR,
     metalness: METALNESS,
@@ -83,7 +90,7 @@ onMount(() => {
     radii[i] = r
     yPos[i] = v.y
     theta[i] = Math.atan2(v.z, v.x)
-    speed[i] = ROTATION_SPEED / ((r + SPEED_EPSILON) ** 2)
+    speed[i] = ROTATION_SPEED / (r + SPEED_EPSILON) ** 2
 
     matrix.makeTranslation(v.x, v.y, v.z)
     mesh.setMatrixAt(i, matrix)
@@ -95,9 +102,13 @@ onMount(() => {
 
   const unsubscribe = onFrame(() => {
     for (let i = 0; i < COUNT; i++) {
-      theta[i] += speed[i]
-      const r = radii[i]
-      matrix.makeTranslation(r * Math.cos(theta[i]), yPos[i], r * Math.sin(theta[i]))
+      theta[i] = theta[i]! + speed[i]!
+      const r = radii[i]!
+      matrix.makeTranslation(
+        r * Math.cos(theta[i]!),
+        yPos[i]!,
+        r * Math.sin(theta[i]!),
+      )
       mesh.setMatrixAt(i, matrix)
     }
     mesh.instanceMatrix.needsUpdate = true
