@@ -1,6 +1,7 @@
 <script lang="ts">
 import { setContext, onMount, type Snippet } from 'svelte'
 import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 let { children }: { children: Snippet } = $props()
 
@@ -29,6 +30,9 @@ onMount(() => {
   renderer.setPixelRatio(window.devicePixelRatio)
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false)
 
+  const controls = new OrbitControls(camera, canvas)
+  controls.enableDamping = true
+
   const resizeObserver = new ResizeObserver(() => {
     const w = canvas.clientWidth
     const h = canvas.clientHeight
@@ -41,6 +45,7 @@ onMount(() => {
   let rafId: number
   const animate = () => {
     rafId = requestAnimationFrame(animate)
+    controls.update()
     for (const fn of frameCallbacks) fn()
     renderer.render(scene, camera)
   }
@@ -49,6 +54,7 @@ onMount(() => {
   return () => {
     cancelAnimationFrame(rafId)
     resizeObserver.disconnect()
+    controls.dispose()
     renderer.dispose()
   }
 })
