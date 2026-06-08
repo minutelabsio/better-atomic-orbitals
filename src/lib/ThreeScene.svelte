@@ -16,7 +16,7 @@ onMount(() => {
     0.1,
     100,
   )
-  camera.position.set(2, 1.5, 3)
+  camera.position.set(0, 0, 4)
   camera.lookAt(0, 0, 0)
 
   // Renderer — attach to our canvas element so it inherits CSS sizing
@@ -24,24 +24,37 @@ onMount(() => {
   renderer.setPixelRatio(window.devicePixelRatio)
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false)
 
-  // Cube
-  const geometry = new THREE.BoxGeometry(1, 1, 1)
-  const material = new THREE.MeshStandardMaterial({
-    color: 0x4488ff,
-    roughness: 0.4,
-    metalness: 0.1,
+  // Spherical point cloud: 1000 points distributed uniformly within a
+  // unit-radius ball. Direction comes from a normalized Gaussian vector;
+  // radius uses cbrt() so density is even by volume (not clumped at center).
+  const POINT_COUNT = 1000
+  const SPHERE_RADIUS = 1
+  const positions = new Float32Array(POINT_COUNT * 3)
+  const v = new THREE.Vector3()
+  for (let i = 0; i < POINT_COUNT; i++) {
+    v.set(
+      THREE.MathUtils.randFloatSpread(2),
+      THREE.MathUtils.randFloatSpread(2),
+      THREE.MathUtils.randFloatSpread(2),
+    )
+    // Reject the degenerate zero vector before normalizing
+    if (v.lengthSq() === 0) v.set(1, 0, 0)
+    v.normalize().multiplyScalar(SPHERE_RADIUS * Math.cbrt(Math.random()))
+    positions[i * 3] = v.x
+    positions[i * 3 + 1] = v.y
+    positions[i * 3 + 2] = v.z
+  }
+
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+
+  const material = new THREE.PointsMaterial({
+    color: 0x66ccff,
+    size: 0.04,
+    sizeAttenuation: true,
   })
-  const cube = new THREE.Mesh(geometry, material)
-  scene.add(cube)
-
-  // Directional light (sun-like, from above-right)
-  const dirLight = new THREE.DirectionalLight(0xffffff, 2.5)
-  dirLight.position.set(5, 8, 4)
-  scene.add(dirLight)
-
-  // Soft ambient fill so shadows aren't pitch black
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.3)
-  scene.add(ambientLight)
+  const points = new THREE.Points(geometry, material)
+  scene.add(points)
 
   // Resize handling via ResizeObserver on the canvas element
   const resizeObserver = new ResizeObserver(() => {
@@ -57,8 +70,7 @@ onMount(() => {
   let rafId: number
   const animate = () => {
     rafId = requestAnimationFrame(animate)
-    cube.rotation.x += 0.005
-    cube.rotation.y += 0.008
+    points.rotation.y += 0.003
     renderer.render(scene, camera)
   }
   animate()
