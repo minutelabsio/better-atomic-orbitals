@@ -1,10 +1,12 @@
 <script lang="ts">
 import { lightingPresets } from './lib/scenes/lightingPresets.js'
+import RaySphereScene from './lib/scenes/RaySphereScene.svelte'
 import TinySpheres from './lib/scenes/TinySpheres.svelte'
 import Three from './lib/Three.svelte'
 
 const scenes = [
   { id: 'tinySpheres', label: 'Tiny Spheres', component: TinySpheres },
+  { id: 'raySphere', label: 'Ray Sphere', component: RaySphereScene },
 ]
 
 const luts = [
@@ -27,7 +29,11 @@ const lutPath = $derived(luts[selectedLutIdx]!.path)
 
 <div class="app">
   <Three {lutPath}>
-    <selected.component presetIdx={lightingPresetIdx} />
+    {#if selected.id === 'tinySpheres'}
+      <TinySpheres presetIdx={lightingPresetIdx} />
+    {:else}
+      <RaySphereScene />
+    {/if}
   </Three>
 
   <div class="controls">
@@ -43,11 +49,13 @@ const lutPath = $derived(luts[selectedLutIdx]!.path)
       {/each}
     </select>
 
-    <select bind:value={lightingPresetIdx}>
-      {#each lightingPresets as preset, i}
-        <option value={i}>{preset.name}</option>
-      {/each}
-    </select>
+    {#if selected.id === 'tinySpheres'}
+      <select bind:value={lightingPresetIdx}>
+        {#each lightingPresets as preset, i}
+          <option value={i}>{preset.name}</option>
+        {/each}
+      </select>
+    {/if}
   </div>
 </div>
 
