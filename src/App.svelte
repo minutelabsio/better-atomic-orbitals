@@ -1,9 +1,11 @@
 <script lang="ts">
 import Three from './lib/Three.svelte'
 import SphericalCloud from './lib/scenes/SphericalCloud.svelte'
+import TinySpheres from './lib/scenes/TinySpheres.svelte'
 
 const scenes = [
   { id: 'sphericalCloud', label: 'Spherical Cloud', component: SphericalCloud },
+  { id: 'tinySpheres', label: 'Tiny Spheres', component: TinySpheres },
 ]
 
 let selectedIdx = $state(0)

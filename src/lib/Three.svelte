@@ -7,7 +7,7 @@ import Stats from 'three/examples/jsm/libs/stats.module.js'
 let { children }: { children: Snippet } = $props()
 
 const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x0a0a0f)
+scene.background = new THREE.Color().setHSL(0, 0, 0.91)
 
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100)
 camera.position.set(0, 0, 4)
@@ -28,8 +28,8 @@ let canvas: HTMLCanvasElement
 
 onMount(() => {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
-  renderer.setPixelRatio(window.devicePixelRatio)
-  renderer.setSize(canvas.clientWidth, canvas.clientHeight, false)
+  renderer.shadowMap.enabled = true
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
   const controls = new OrbitControls(camera, canvas)
   controls.enableDamping = true
@@ -37,19 +37,27 @@ onMount(() => {
   const stats = new Stats()
   document.body.appendChild(stats.dom)
 
-  const resizeObserver = new ResizeObserver(() => {
-    const w = canvas.clientWidth
-    const h = canvas.clientHeight
-    camera.aspect = w / h
-    camera.updateProjectionMatrix()
+  // Per the three.js manual, avoid setPixelRatio() and instead manually
+  // account for devicePixelRatio in the resize check. This keeps the actual
+  // drawingBuffer size predictable (no magic scaling behind the scenes) and
+  // also catches DPR changes (e.g. moving the window between monitors) since
+  // the check runs every frame.
+  function resizeIfNeeded(): boolean {
+    const dpr = window.devicePixelRatio
+    const w = Math.floor(canvas.clientWidth * dpr)
+    const h = Math.floor(canvas.clientHeight * dpr)
+    if (canvas.width === w && canvas.height === h) return false
     renderer.setSize(w, h, false)
-  })
-  resizeObserver.observe(canvas)
+    camera.aspect = canvas.clientWidth / canvas.clientHeight
+    camera.updateProjectionMatrix()
+    return true
+  }
 
   let rafId: number
   const animate = () => {
     rafId = requestAnimationFrame(animate)
     stats.begin()
+    resizeIfNeeded()
     controls.update()
     for (const fn of frameCallbacks) fn()
     renderer.render(scene, camera)
@@ -59,7 +67,6 @@ onMount(() => {
 
   return () => {
     cancelAnimationFrame(rafId)
-    resizeObserver.disconnect()
     controls.dispose()
     renderer.dispose()
     stats.dom.remove()
