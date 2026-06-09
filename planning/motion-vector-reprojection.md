@@ -3,6 +3,15 @@
 **Status:** not started
 **Scene:** `src/lib/scenes/manySpheres/`
 
+> **Note (2026-06-09):** an *object-space* alternative to this whole approach is
+> now implemented and selectable in the UI ("GI strategy → Object-space
+> per-sphere"). Instead of reprojecting screen-space history, it accumulates each
+> sphere's indirect lighting in a per-sphere buffer keyed on the sphere index,
+> which is inherently motion-invariant — so it has no motion blur and needs none
+> of the machinery below. See `ManySpheresObjGI.svelte` + `manySpheresProbe.frag.glsl`
+> + `manySpheresObjGI.frag.glsl`. The plan below is still the route if a
+> *screen-space*, view-dependent denoiser (sharp per-cap indirect) is wanted.
+
 ## Problem
 
 The GI denoiser (`manySpheres.frag.glsl`) uses a temporal exponential moving
