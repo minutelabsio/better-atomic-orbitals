@@ -34,7 +34,7 @@ const manyResScales = [
   { label: '½ res', value: 0.5 },
 ]
 
-let giStrategy = $state(0)
+let giStrategy = $state(1)
 let selectedSceneIdx = $state(0)
 let selectedLutIdx = $state(0)
 let lightingPresetIdx = $state(0)
@@ -46,7 +46,7 @@ let manyObjSamples = $state(1)
 let manyRandomize = $state(true)
 let manyIndirect = $state(true)
 let manyCutaway = $state(false)
-let manyCutawayFeather = $state(0.15)
+let manyCutawayFeather = $state(0.05)
 let manyRadius = $state(0.012)
 let manyRadiusVar = $state(0)
 let sphereHex = $state<string | null>('#f1921f')
@@ -206,8 +206,8 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           <input
             type="range"
             min="0"
-            max="0.5"
-            step="0.01"
+            max="0.3"
+            step="0.001"
             bind:value={manyCutawayFeather}
           />
         </label>
