@@ -58,7 +58,7 @@ let orbitalIdx = $state(
 )
 let manySpeed = $state(0.001)
 let manyBlend = $state(0.28)
-let manyObjBlend = $state(0.05)
+let manyObjBlend = $state(0.01)
 let manyObjSamples = $state(1)
 let manyRandomize = $state(true)
 let manyIndirect = $state(true)
@@ -66,6 +66,7 @@ let manyCutaway = $state(false)
 let manyCutawayFeather = $state(0.05)
 let manyRadius = $state(0.012)
 let manyRadiusVar = $state(0)
+// other nice colors: #80354d, #8bb10d
 let sphereHex = $state<string | null>('#f1921f')
 let bgHex = $state<string | null>('#ffffff')
 
