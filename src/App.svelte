@@ -1,12 +1,14 @@
 <script lang="ts">
 import { lightingPresets } from './lib/scenes/lightingPresets.js'
-import RaySphereScene from './lib/scenes/RaySphereScene.svelte'
-import TinySpheres from './lib/scenes/TinySpheres.svelte'
+import ManySpheres from './lib/scenes/manySpheres/ManySpheres.svelte'
+import RaySphereScene from './lib/scenes/raySphere/RaySphereScene.svelte'
+import TinySpheres from './lib/scenes/tinySpheres/TinySpheres.svelte'
 import Three from './lib/Three.svelte'
 
 const scenes = [
   { id: 'tinySpheres', label: 'Tiny Spheres', component: TinySpheres },
   { id: 'raySphere', label: 'Ray Sphere', component: RaySphereScene },
+  { id: 'manySpheres', label: 'Many Spheres (RT)', component: ManySpheres },
 ]
 
 const luts = [
@@ -19,18 +21,33 @@ const luts = [
   { label: 'Presetpro Cinematic', path: '/luts/Presetpro-Cinematic.cube' },
 ]
 
+const manyCounts = [2000, 10000, 50000, 100000]
+const manyResScales = [
+  { label: 'Full res', value: 1 },
+  { label: '¾ res', value: 0.75 },
+  { label: '½ res', value: 0.5 },
+]
+
 let selectedSceneIdx = $state(0)
 let selectedLutIdx = $state(0)
 let lightingPresetIdx = $state(0)
+let manyCountIdx = $state(2)
+let manyResIdx = $state(0)
 
 const selected = $derived(scenes[selectedSceneIdx]!)
 const lutPath = $derived(luts[selectedLutIdx]!.path)
+const manyCount = $derived(manyCounts[manyCountIdx]!)
+const manyResScale = $derived(manyResScales[manyResIdx]!.value)
 </script>
 
 <div class="app">
   <Three {lutPath}>
     {#if selected.id === 'tinySpheres'}
       <TinySpheres presetIdx={lightingPresetIdx} />
+    {:else if selected.id === 'manySpheres'}
+      {#key manyCount}
+        <ManySpheres count={manyCount} resScale={manyResScale} />
+      {/key}
     {:else}
       <RaySphereScene />
     {/if}
@@ -53,6 +70,17 @@ const lutPath = $derived(luts[selectedLutIdx]!.path)
       <select bind:value={lightingPresetIdx}>
         {#each lightingPresets as preset, i}
           <option value={i}>{preset.name}</option>
+        {/each}
+      </select>
+    {:else if selected.id === 'manySpheres'}
+      <select bind:value={manyCountIdx}>
+        {#each manyCounts as c, i}
+          <option value={i}>{c.toLocaleString()} spheres</option>
+        {/each}
+      </select>
+      <select bind:value={manyResIdx}>
+        {#each manyResScales as r, i}
+          <option value={i}>{r.label}</option>
         {/each}
       </select>
     {/if}

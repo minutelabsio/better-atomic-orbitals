@@ -1,0 +1,168 @@
+<script lang="ts">
+import { getContext, onMount } from 'svelte'
+import * as THREE from 'three'
+import displayShader from './manySpheresDisplay.frag.glsl'
+import fragmentShader from './manySpheres.frag.glsl'
+import vertexShader from './manySpheres.vert.glsl'
+import { SphereGrid } from './sphereGrid.js'
+
+const ctx = getContext<{
+  scene: THREE.Scene
+  camera: THREE.PerspectiveCamera
+  renderer: THREE.WebGLRenderer | null
+  onFrame: (fn: () => void) => () => void
+}>('three')
+const { scene, camera, onFrame } = ctx
+
+let {
+  count = 50000,
+  gridRes = 48,
+  resScale = 1,
+  blend = 0.12,
+}: {
+  count?: number
+  gridRes?: number
+  resScale?: number
+  blend?: number
+} = $props()
+
+const ALBEDO = new THREE.Color().setHSL(28 / 360, 0.85, 0.5)
+
+function makeTarget(w: number, h: number): THREE.WebGLRenderTarget {
+  return new THREE.WebGLRenderTarget(w, h, {
+    type: THREE.HalfFloatType,
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    depthBuffer: false,
+    stencilBuffer: false,
+  })
+}
+
+onMount(() => {
+  const grid = new SphereGrid({ count, gridRes })
+
+  const uniforms = {
+    uCameraPos: { value: new THREE.Vector3() },
+    uInvViewProj: { value: new THREE.Matrix4() },
+    uSpherePos: { value: grid.spherePosTex },
+    uCellRange: { value: grid.cellRangeTex },
+    uIndexList: { value: grid.indexListTex },
+    uSpherePosTexW: { value: grid.spherePosTexW },
+    uCellRangeTexW: { value: grid.cellRangeTexW },
+    uIndexListTexW: { value: grid.indexListTexW },
+    uGridRes: { value: grid.gridRes },
+    uBoundMin: { value: grid.boundMin },
+    uCellSize: { value: grid.cellSize },
+    uAlbedo: { value: new THREE.Vector3(ALBEDO.r, ALBEDO.g, ALBEDO.b) },
+    uHistory: { value: null as THREE.Texture | null },
+    uBlend: { value: 1 },
+    uFrame: { value: 0 },
+  }
+  const traceMaterial = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    uniforms,
+    glslVersion: THREE.GLSL3,
+    depthTest: false,
+    depthWrite: false,
+  })
+
+  // offscreen quad: runs the ray-trace + accumulation pass into a render target
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), traceMaterial)
+  quad.frustumCulled = false
+  const traceScene = new THREE.Scene().add(quad)
+  const traceCamera = new THREE.Camera()
+
+  // visible mesh in the main scene: just displays the latest accumulation texture
+  const displayUniforms = { uTex: { value: null as THREE.Texture | null } }
+  const displayMaterial = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader: displayShader,
+    uniforms: displayUniforms,
+    glslVersion: THREE.GLSL3,
+    depthTest: false,
+    depthWrite: false,
+  })
+  const displayMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(2, 2),
+    displayMaterial,
+  )
+  displayMesh.frustumCulled = false
+  scene.add(displayMesh)
+
+  let read = makeTarget(1, 1)
+  let write = makeTarget(1, 1)
+  let tw = 0
+  let th = 0
+
+  const invViewProj = new THREE.Matrix4()
+  const drawBuf = new THREE.Vector2()
+  const prevPos = new THREE.Vector3()
+  const prevQuat = new THREE.Quaternion()
+  let frame = 0
+
+  const unsubscribe = onFrame(() => {
+    const renderer = ctx.renderer
+    if (!renderer) return
+
+    grid.update()
+
+    // size the accumulation targets to the (scaled) drawing buffer
+    renderer.getDrawingBufferSize(drawBuf)
+    const w = Math.max(1, Math.floor(drawBuf.x * resScale))
+    const h = Math.max(1, Math.floor(drawBuf.y * resScale))
+    let reset = frame === 0
+    if (w !== tw || h !== th) {
+      read.setSize(w, h)
+      write.setSize(w, h)
+      tw = w
+      th = h
+      reset = true
+    }
+
+    // camera-move detection -> snap accumulation to the current sample
+    camera.updateMatrixWorld()
+    if (
+      !reset &&
+      (camera.position.distanceToSquared(prevPos) > 1e-9 ||
+        Math.abs(camera.quaternion.dot(prevQuat)) < 0.9999995)
+    ) {
+      reset = true
+    }
+    prevPos.copy(camera.position)
+    prevQuat.copy(camera.quaternion)
+
+    uniforms.uCameraPos.value.copy(camera.position)
+    invViewProj
+      .copy(camera.projectionMatrixInverse)
+      .premultiply(camera.matrixWorld)
+    uniforms.uInvViewProj.value.copy(invViewProj)
+    uniforms.uHistory.value = read.texture
+    uniforms.uBlend.value = reset ? 1 : blend
+    uniforms.uFrame.value = frame
+
+    renderer.setRenderTarget(write)
+    renderer.render(traceScene, traceCamera)
+    renderer.setRenderTarget(null)
+
+    const tmp = read
+    read = write
+    write = tmp
+    displayUniforms.uTex.value = read.texture
+
+    frame++
+  })
+
+  return () => {
+    unsubscribe()
+    scene.remove(displayMesh)
+    quad.geometry.dispose()
+    displayMesh.geometry.dispose()
+    traceMaterial.dispose()
+    displayMaterial.dispose()
+    read.dispose()
+    write.dispose()
+    grid.dispose()
+  }
+})
+</script>

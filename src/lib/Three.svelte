@@ -22,19 +22,29 @@ camera.lookAt(0, 0, 0)
 
 const frameCallbacks = new Set<() => void>()
 
-setContext('three', {
+// renderer is created in onMount (after child scenes mount); scenes that need it
+// for offscreen passes read ctx.renderer lazily inside their frame callback.
+const ctx: {
+  scene: THREE.Scene
+  camera: THREE.PerspectiveCamera
+  renderer: THREE.WebGLRenderer | null
+  onFrame: (fn: () => void) => () => void
+} = {
   scene,
   camera,
+  renderer: null,
   onFrame: (fn: () => void) => {
     frameCallbacks.add(fn)
     return () => frameCallbacks.delete(fn)
   },
-})
+}
+setContext('three', ctx)
 
 let canvas: HTMLCanvasElement
 
 onMount(() => {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
+  ctx.renderer = renderer
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
   renderer.localClippingEnabled = true

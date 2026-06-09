@@ -1,7 +1,7 @@
 <script lang="ts">
 import { getContext, onMount } from 'svelte'
 import * as THREE from 'three'
-import { lightingPresets } from './lightingPresets.js'
+import { lightingPresets } from '../lightingPresets.js'
 
 const { scene, onFrame } = getContext<{
   scene: THREE.Scene
@@ -10,9 +10,9 @@ const { scene, onFrame } = getContext<{
 }>('three')
 
 // --- scene parameters ---
-const COUNT = 30000
+const COUNT = 50000
 const CLUSTER_RADIUS = 1.4 // radius of the sphere volume they're distributed in
-const SPHERE_RADIUS = 0.012 // radius of each individual sphere
+const SPHERE_RADIUS = 0.018 // radius of each individual sphere
 const SPHERE_SEGMENTS = 7 // width segments (height = SPHERE_SEGMENTS - 2)
 const COLOR = new THREE.Color().setHSL(28 / 360, 1, 0.4819)
 const ROUGHNESS = 0.5
