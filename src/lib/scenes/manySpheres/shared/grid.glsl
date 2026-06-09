@@ -18,10 +18,11 @@ vec2 fetchCell(sampler2D cellRange, int w, int cellId) {
 }
 
 // Amanatides-Woo DDA traversal of the uniform grid.
-// Returns nearest hit t (or -1.0) and fills hitCenter with that sphere's centre.
+// Returns nearest hit t (or -1.0), fills hitCenter with that sphere's centre,
+// and hitIndex with its sphere index (-1 on miss).
 float traceGrid(vec3 ro, vec3 rd,
     sampler2D spherePos, sampler2D cellRange, sampler2D indexList,
-    GridParams g, out vec3 hitCenter) {
+    GridParams g, out vec3 hitCenter, out int hitIndex) {
   float gridSize = g.cellSize * float(g.gridRes);
   vec3 bmin = vec3(g.boundMin);
   vec3 bmax = bmin + gridSize;
@@ -49,6 +50,7 @@ float traceGrid(vec3 ro, vec3 rd,
 
   float tBest = TFAR;
   hitCenter = vec3(0.0);
+  hitIndex = -1;
   bool found = false;
   int last = g.gridRes - 1;
 
@@ -64,6 +66,7 @@ float traceGrid(vec3 ro, vec3 rd,
       if (th > EPS && th < tBest) {
         tBest = th;
         hitCenter = sp.xyz;
+        hitIndex = si;
         found = true;
       }
     }

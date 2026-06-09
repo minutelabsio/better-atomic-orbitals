@@ -2,6 +2,7 @@
 import ColorPicker from 'svelte-awesome-color-picker'
 import { lightingPresets } from './lib/scenes/lightingPresets.js'
 import ManySpheres from './lib/scenes/manySpheres/ManySpheres.svelte'
+import ManySpheresObjGI from './lib/scenes/manySpheres/ManySpheresObjGI.svelte'
 import RaySphereScene from './lib/scenes/raySphere/RaySphereScene.svelte'
 import TinySpheres from './lib/scenes/tinySpheres/TinySpheres.svelte'
 import Three from './lib/Three.svelte'
@@ -22,6 +23,10 @@ const luts = [
   { label: 'Presetpro Cinematic', path: '/luts/Presetpro-Cinematic.cube' },
 ]
 
+const giStrategies = [
+  { label: 'Screen-space temporal', value: 0 },
+  { label: 'Object-space per-sphere', value: 1 },
+]
 const manyCounts = [2000, 10000, 50000, 100000]
 const manyResScales = [
   { label: 'Full res', value: 1 },
@@ -29,6 +34,7 @@ const manyResScales = [
   { label: '½ res', value: 0.5 },
 ]
 
+let giStrategy = $state(0)
 let selectedSceneIdx = $state(0)
 let selectedLutIdx = $state(0)
 let lightingPresetIdx = $state(0)
@@ -53,18 +59,31 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
     {#if selected.id === 'tinySpheres'}
       <TinySpheres presetIdx={lightingPresetIdx} />
     {:else if selected.id === 'manySpheres'}
-      {#key manyCount}
-        <ManySpheres
-          count={manyCount}
-          resScale={manyResScale}
-          blend={manyBlend}
-          randomize={manyRandomize}
-          sphereColor={sphereHex ?? '#ec7813'}
-          bgColor={bgHex ?? '#33373d'}
-          cutaway={manyCutaway}
-          sphereRadius={manyRadius}
-          radiusVariation={manyRadiusVar}
-        />
+      {#key `${manyCount}-${giStrategy}`}
+        {#if giStrategy === 1}
+          <ManySpheresObjGI
+            count={manyCount}
+            resScale={manyResScale}
+            blend={manyBlend}
+            sphereColor={sphereHex ?? '#ec7813'}
+            bgColor={bgHex ?? '#33373d'}
+            cutaway={manyCutaway}
+            sphereRadius={manyRadius}
+            radiusVariation={manyRadiusVar}
+          />
+        {:else}
+          <ManySpheres
+            count={manyCount}
+            resScale={manyResScale}
+            blend={manyBlend}
+            randomize={manyRandomize}
+            sphereColor={sphereHex ?? '#ec7813'}
+            bgColor={bgHex ?? '#33373d'}
+            cutaway={manyCutaway}
+            sphereRadius={manyRadius}
+            radiusVariation={manyRadiusVar}
+          />
+        {/if}
       {/key}
     {:else}
       <RaySphereScene />
@@ -91,6 +110,11 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
         {/each}
       </select>
     {:else if selected.id === 'manySpheres'}
+      <select bind:value={giStrategy}>
+        {#each giStrategies as s}
+          <option value={s.value}>{s.label}</option>
+        {/each}
+      </select>
       <select bind:value={manyCountIdx}>
         {#each manyCounts as c, i}
           <option value={i}>{c.toLocaleString()} spheres</option>
@@ -131,10 +155,12 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           bind:value={manyRadiusVar}
         />
       </label>
-      <label class="ctl checkbox">
-        <input type="checkbox" bind:checked={manyRandomize} />
-        <span>Randomize samples</span>
-      </label>
+      {#if giStrategy === 0}
+        <label class="ctl checkbox">
+          <input type="checkbox" bind:checked={manyRandomize} />
+          <span>Randomize samples</span>
+        </label>
+      {/if}
       <label class="ctl checkbox">
         <input type="checkbox" bind:checked={manyCutaway} />
         <span>Cutaway (top-front quarter)</span>

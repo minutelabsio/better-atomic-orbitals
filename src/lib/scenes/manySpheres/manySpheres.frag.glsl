@@ -54,8 +54,9 @@ vec3 shade(vec3 ro, vec3 rd, float t, vec3 center, inout uint seed) {
 #if SHADOWS
   {
     vec3 sc;
+    int si;
     float st = traceGrid(hp + n * (2.0 * EPS), keyLightDir(),
-      uSpherePos, uCellRange, uIndexList, g, sc);
+      uSpherePos, uCellRange, uIndexList, g, sc, si);
     keyVis = st > 0.0 ? 0.0 : 1.0;
   }
 #endif
@@ -67,7 +68,8 @@ vec3 shade(vec3 ro, vec3 rd, float t, vec3 center, inout uint seed) {
   vec3 bdir = uRandomize ? cosineHemisphere(n, seed) : n;
   vec3 bo = hp + n * (2.0 * EPS);
   vec3 bcenter;
-  float bt = traceGrid(bo, bdir, uSpherePos, uCellRange, uIndexList, g, bcenter);
+  int bidx;
+  float bt = traceGrid(bo, bdir, uSpherePos, uCellRange, uIndexList, g, bcenter, bidx);
   vec3 Li;
   if (bt > 0.0) {
     vec3 bhp = bo + bdir * bt;
@@ -95,8 +97,9 @@ void main() {
 
   vec3 color;
   vec3 center;
+  int centerIdx;
   GridParams g = gridParams();
-  float t = traceGrid(ro, rd, uSpherePos, uCellRange, uIndexList, g, center);
+  float t = traceGrid(ro, rd, uSpherePos, uCellRange, uIndexList, g, center, centerIdx);
   if (t < 0.0) {
     color = skyColor(rd, uBackground);
   } else {
