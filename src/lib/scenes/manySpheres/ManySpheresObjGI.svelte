@@ -20,7 +20,7 @@ let {
   gridRes = 48,
   resScale = 0.5,
   blend = 0.05,
-  samples = 8,
+  samples = 1,
   sphereColor = '#ec7813',
   bgColor = '#33373d',
   cutaway = false,

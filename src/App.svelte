@@ -42,7 +42,7 @@ let manyCountIdx = $state(2)
 let manyResIdx = $state(2)
 let manyBlend = $state(0.28)
 let manyObjBlend = $state(0.05)
-let manyObjSamples = $state(8)
+let manyObjSamples = $state(1)
 let manyRandomize = $state(true)
 let manyIndirect = $state(true)
 let manyCutaway = $state(false)
@@ -143,7 +143,7 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
         </label>
       {:else}
         <label class="ctl">
-          <span>Accumulation: {manyObjBlend.toFixed(3)}</span>
+          <span>Blend: {manyObjBlend.toFixed(3)}</span>
           <input
             type="range"
             min="0.01"
