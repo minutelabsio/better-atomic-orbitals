@@ -19,6 +19,7 @@ uniform float uBoundMin;
 uniform float uCellSize;
 
 uniform vec3 uAlbedo;
+uniform vec3 uBackground;
 
 // --- temporal accumulation ---
 uniform sampler2D uHistory;
@@ -43,9 +44,11 @@ const vec3 L2_DIR = normalize(vec3(0.1, -0.6, 0.7));
 const vec3 L2_COL = vec3(0.9, 0.7, 0.5) * 0.35;
 const float AMBIENT = 0.02;
 
+// background + environment (also the indirect light when a bounce ray misses);
+// the chosen colour with a soft top-to-bottom brightness gradient for depth
 vec3 skyColor(vec3 rd) {
   float t = 0.5 * (rd.y + 1.0);
-  return mix(vec3(0.10, 0.11, 0.11), vec3(0.40, 0.46, 0.46), t);
+  return uBackground * mix(0.65, 1.2, t);
 }
 
 vec4 fetchSphere(int i) {

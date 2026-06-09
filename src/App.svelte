@@ -1,4 +1,5 @@
 <script lang="ts">
+import ColorPicker from 'svelte-awesome-color-picker'
 import { lightingPresets } from './lib/scenes/lightingPresets.js'
 import ManySpheres from './lib/scenes/manySpheres/ManySpheres.svelte'
 import RaySphereScene from './lib/scenes/raySphere/RaySphereScene.svelte'
@@ -6,9 +7,9 @@ import TinySpheres from './lib/scenes/tinySpheres/TinySpheres.svelte'
 import Three from './lib/Three.svelte'
 
 const scenes = [
+  { id: 'manySpheres', label: 'Many Spheres (RT)', component: ManySpheres },
   { id: 'tinySpheres', label: 'Tiny Spheres', component: TinySpheres },
   { id: 'raySphere', label: 'Ray Sphere', component: RaySphereScene },
-  { id: 'manySpheres', label: 'Many Spheres (RT)', component: ManySpheres },
 ]
 
 const luts = [
@@ -32,9 +33,12 @@ let selectedSceneIdx = $state(0)
 let selectedLutIdx = $state(0)
 let lightingPresetIdx = $state(0)
 let manyCountIdx = $state(2)
-let manyResIdx = $state(0)
-let manyBlend = $state(0.12)
-let manyRandomize = $state(true)
+let manyResIdx = $state(2)
+let manyBlend = $state(0.5)
+let manyRandomize = $state(false)
+let manyCutaway = $state(false)
+let sphereHex = $state<string | null>('#f1921f')
+let bgHex = $state<string | null>('#ffffff')
 
 const selected = $derived(scenes[selectedSceneIdx]!)
 const lutPath = $derived(luts[selectedLutIdx]!.path)
@@ -53,6 +57,9 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           resScale={manyResScale}
           blend={manyBlend}
           randomize={manyRandomize}
+          sphereColor={sphereHex ?? '#ec7813'}
+          bgColor={bgHex ?? '#33373d'}
+          cutaway={manyCutaway}
         />
       {/key}
     {:else}
@@ -104,6 +111,24 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
         <input type="checkbox" bind:checked={manyRandomize} />
         <span>Randomize samples</span>
       </label>
+      <label class="ctl checkbox">
+        <input type="checkbox" bind:checked={manyCutaway} />
+        <span>Cutaway (top-front quarter)</span>
+      </label>
+      <div class="ctl colors">
+        <ColorPicker
+          bind:hex={sphereHex}
+          label="Sphere color"
+          isAlpha={false}
+          position="responsive"
+        />
+        <ColorPicker
+          bind:hex={bgHex}
+          label="Background"
+          isAlpha={false}
+          position="responsive"
+        />
+      </div>
     {/if}
   </div>
 </div>
@@ -164,5 +189,24 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
   .ctl.checkbox input {
     cursor: pointer;
     accent-color: #66a0dc;
+  }
+
+  .ctl.colors {
+    gap: 0.5rem;
+    /* theme svelte-awesome-color-picker to match the dark panel */
+    --cp-bg-color: rgba(10, 10, 20, 0.96);
+    --cp-border-color: rgba(100, 160, 220, 0.35);
+    --cp-text-color: #aac8e0;
+    --cp-input-color: rgba(255, 255, 255, 0.06);
+    --cp-button-hover-color: rgba(255, 255, 255, 0.14);
+  }
+
+  /* the picker's label + swatch row */
+  .ctl.colors :global(.color-picker > label.container) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: #aac8e0;
   }
 </style>

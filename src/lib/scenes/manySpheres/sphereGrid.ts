@@ -141,8 +141,13 @@ export class SphereGrid {
     this.update() // initial build so first frame has data
   }
 
-  /** advance orbits one step and rebuild the grid */
-  update(): void {
+  /**
+   * Advance orbits one step and rebuild the grid.
+   * @param cutaway when true, spheres in the top-front quarter (y>0 && z>0) are
+   *   excluded from the grid entirely — empty cells there, so rays traverse the
+   *   opening cheaply instead of marching through full-but-skipped cells.
+   */
+  update(cutaway = false): void {
     const { count, gridRes, cellSize, boundMin, sphereRadius, indexCapacity } =
       this
     const { theta, radii, yPos, speed } = this
@@ -169,6 +174,10 @@ export class SphereGrid {
       spherePosData[o + 1] = y
       spherePosData[o + 2] = z
       spherePosData[o + 3] = sphereRadius
+
+      // cutaway: don't insert this sphere into the grid at all (still advanced
+      // above, since its position is needed to test the cut region)
+      if (cutaway && y > 0 && z > 0) continue
 
       // cell range covered by the sphere AABB (border-correct insertion)
       const x0 = clampCell((x - sphereRadius - boundMin) / cellSize, last)
@@ -203,6 +212,7 @@ export class SphereGrid {
       const x = spherePosData[o]!
       const y = spherePosData[o + 1]!
       const z = spherePosData[o + 2]!
+      if (cutaway && y > 0 && z > 0) continue // same exclusion as pass 1
       const x0 = clampCell((x - sphereRadius - boundMin) / cellSize, last)
       const x1 = clampCell((x + sphereRadius - boundMin) / cellSize, last)
       const y0 = clampCell((y - sphereRadius - boundMin) / cellSize, last)

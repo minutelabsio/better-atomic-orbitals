@@ -20,15 +20,23 @@ let {
   resScale = 0.5,
   blend = 0.5,
   randomize = false,
+  sphereColor = '#ec7813',
+  bgColor = '#33373d',
+  cutaway = false,
 }: {
   count?: number
   gridRes?: number
   resScale?: number
   blend?: number
   randomize?: boolean
+  sphereColor?: string
+  bgColor?: string
+  cutaway?: boolean
 } = $props()
 
-const ALBEDO = new THREE.Color().setHSL(28 / 360, 0.85, 0.5)
+// reusable scratch colors; hex strings (sRGB) -> linear working values
+const albedoColor = new THREE.Color()
+const bgColor3 = new THREE.Color()
 
 function makeTarget(w: number, h: number): THREE.WebGLRenderTarget {
   return new THREE.WebGLRenderTarget(w, h, {
@@ -55,7 +63,8 @@ onMount(() => {
     uGridRes: { value: grid.gridRes },
     uBoundMin: { value: grid.boundMin },
     uCellSize: { value: grid.cellSize },
-    uAlbedo: { value: new THREE.Vector3(ALBEDO.r, ALBEDO.g, ALBEDO.b) },
+    uAlbedo: { value: new THREE.Vector3() },
+    uBackground: { value: new THREE.Vector3() },
     uHistory: { value: null as THREE.Texture | null },
     uBlend: { value: 1 },
     uFrame: { value: 0 },
@@ -108,7 +117,7 @@ onMount(() => {
     const renderer = ctx.renderer
     if (!renderer) return
 
-    grid.update()
+    grid.update(cutaway)
 
     // size the accumulation targets to the (scaled) drawing buffer
     renderer.getDrawingBufferSize(drawBuf)
@@ -144,6 +153,10 @@ onMount(() => {
     uniforms.uBlend.value = reset ? 1 : blend
     uniforms.uFrame.value = frame
     uniforms.uRandomize.value = randomize
+    albedoColor.set(sphereColor)
+    uniforms.uAlbedo.value.set(albedoColor.r, albedoColor.g, albedoColor.b)
+    bgColor3.set(bgColor)
+    uniforms.uBackground.value.set(bgColor3.r, bgColor3.g, bgColor3.b)
 
     renderer.setRenderTarget(write)
     renderer.render(traceScene, traceCamera)
