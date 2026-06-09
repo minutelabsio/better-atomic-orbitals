@@ -37,6 +37,8 @@ let manyResIdx = $state(2)
 let manyBlend = $state(0.5)
 let manyRandomize = $state(false)
 let manyCutaway = $state(false)
+let manyRadius = $state(0.012)
+let manyRadiusVar = $state(0)
 let sphereHex = $state<string | null>('#f1921f')
 let bgHex = $state<string | null>('#ffffff')
 
@@ -60,6 +62,8 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           sphereColor={sphereHex ?? '#ec7813'}
           bgColor={bgHex ?? '#33373d'}
           cutaway={manyCutaway}
+          sphereRadius={manyRadius}
+          radiusVariation={manyRadiusVar}
         />
       {/key}
     {:else}
@@ -105,6 +109,26 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           max="1"
           step="0.01"
           bind:value={manyBlend}
+        />
+      </label>
+      <label class="ctl">
+        <span>Radius: {manyRadius.toFixed(3)}</span>
+        <input
+          type="range"
+          min="0.007"
+          max="0.02"
+          step="0.0001"
+          bind:value={manyRadius}
+        />
+      </label>
+      <label class="ctl">
+        <span>Radius variation: ±{Math.round(manyRadiusVar * 100)}%</span>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          bind:value={manyRadiusVar}
         />
       </label>
       <label class="ctl checkbox">

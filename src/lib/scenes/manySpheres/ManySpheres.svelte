@@ -23,6 +23,8 @@ let {
   sphereColor = '#ec7813',
   bgColor = '#33373d',
   cutaway = false,
+  sphereRadius = 0.012,
+  radiusVariation = 0,
 }: {
   count?: number
   gridRes?: number
@@ -32,6 +34,8 @@ let {
   sphereColor?: string
   bgColor?: string
   cutaway?: boolean
+  sphereRadius?: number
+  radiusVariation?: number
 } = $props()
 
 // reusable scratch colors; hex strings (sRGB) -> linear working values
@@ -117,7 +121,7 @@ onMount(() => {
     const renderer = ctx.renderer
     if (!renderer) return
 
-    grid.update(cutaway)
+    grid.update(cutaway, sphereRadius, radiusVariation)
 
     // size the accumulation targets to the (scaled) drawing buffer
     renderer.getDrawingBufferSize(drawBuf)

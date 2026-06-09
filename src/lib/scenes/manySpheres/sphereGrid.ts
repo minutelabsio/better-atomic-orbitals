@@ -67,6 +67,8 @@ export class SphereGrid {
   private readonly radii: Float32Array
   private readonly yPos: Float32Array
   private readonly speed: Float32Array
+  /** stable per-sphere uniform random in [-1, 1] for size variation */
+  private readonly radiusRand: Float32Array
 
   private readonly spherePosData: Float32Array
   private readonly cellRangeData: Float32Array
@@ -82,8 +84,9 @@ export class SphereGrid {
       speedEpsilon = 0.1,
       xzGap = 0.08,
       gridRes = 32,
-      boundRadius = clusterRadius + 4 * sphereRadius + 0.05,
-      capacityFactor = 3,
+      // generous fixed margin so live radius changes stay within the domain
+      boundRadius = clusterRadius + 0.1,
+      capacityFactor = 4,
     } = opts
 
     this.count = count
@@ -98,6 +101,7 @@ export class SphereGrid {
     this.radii = new Float32Array(count)
     this.yPos = new Float32Array(count)
     this.speed = new Float32Array(count)
+    this.radiusRand = new Float32Array(count)
 
     // --- seed orbital parameters (mirrors TinySpheres.svelte) ---
     const v = new THREE.Vector3()
@@ -117,6 +121,7 @@ export class SphereGrid {
       this.yPos[i] = v.y
       this.theta[i] = Math.atan2(v.z, v.x)
       this.speed[i] = rotationSpeed / (r + speedEpsilon) ** 2
+      this.radiusRand[i] = Math.random() * 2 - 1 // uniform [-1, 1]
     }
 
     // --- allocate textures ---
@@ -146,12 +151,19 @@ export class SphereGrid {
    * @param cutaway when true, spheres in the top-front quarter (y>0 && z>0) are
    *   excluded from the grid entirely — empty cells there, so rays traverse the
    *   opening cheaply instead of marching through full-but-skipped cells.
+   * @param sphereRadius base radius of each sphere.
+   * @param radiusVariation fraction (0..1); each sphere's radius is scaled by
+   *   1 + radiusVariation * rand, where rand is its stable uniform [-1, 1].
    */
-  update(cutaway = false): void {
-    const { count, gridRes, cellSize, boundMin, sphereRadius, indexCapacity } =
-      this
+  update(
+    cutaway = false,
+    sphereRadius = this.sphereRadius,
+    radiusVariation = 0,
+  ): void {
+    const { count, gridRes, cellSize, boundMin, indexCapacity } = this
     const { theta, radii, yPos, speed } = this
     // explicit member reads (biome's unused-private check misses destructure reads)
+    const radiusRand = this.radiusRand
     const spherePosData = this.spherePosData
     const cellRangeData = this.cellRangeData
     const indexListData = this.indexListData
@@ -169,23 +181,24 @@ export class SphereGrid {
       const y = yPos[i]!
       const z = r * Math.sin(th)
 
+      const rr = sphereRadius * (1 + radiusVariation * radiusRand[i]!)
       const o = i * 4
       spherePosData[o] = x
       spherePosData[o + 1] = y
       spherePosData[o + 2] = z
-      spherePosData[o + 3] = sphereRadius
+      spherePosData[o + 3] = rr
 
       // cutaway: don't insert this sphere into the grid at all (still advanced
       // above, since its position is needed to test the cut region)
       if (cutaway && y > 0 && z > 0) continue
 
       // cell range covered by the sphere AABB (border-correct insertion)
-      const x0 = clampCell((x - sphereRadius - boundMin) / cellSize, last)
-      const x1 = clampCell((x + sphereRadius - boundMin) / cellSize, last)
-      const y0 = clampCell((y - sphereRadius - boundMin) / cellSize, last)
-      const y1 = clampCell((y + sphereRadius - boundMin) / cellSize, last)
-      const z0 = clampCell((z - sphereRadius - boundMin) / cellSize, last)
-      const z1 = clampCell((z + sphereRadius - boundMin) / cellSize, last)
+      const x0 = clampCell((x - rr - boundMin) / cellSize, last)
+      const x1 = clampCell((x + rr - boundMin) / cellSize, last)
+      const y0 = clampCell((y - rr - boundMin) / cellSize, last)
+      const y1 = clampCell((y + rr - boundMin) / cellSize, last)
+      const z0 = clampCell((z - rr - boundMin) / cellSize, last)
+      const z1 = clampCell((z + rr - boundMin) / cellSize, last)
       for (let cz = z0; cz <= z1; cz++) {
         for (let cy = y0; cy <= y1; cy++) {
           const base = (cz * gridRes + cy) * gridRes
@@ -213,12 +226,13 @@ export class SphereGrid {
       const y = spherePosData[o + 1]!
       const z = spherePosData[o + 2]!
       if (cutaway && y > 0 && z > 0) continue // same exclusion as pass 1
-      const x0 = clampCell((x - sphereRadius - boundMin) / cellSize, last)
-      const x1 = clampCell((x + sphereRadius - boundMin) / cellSize, last)
-      const y0 = clampCell((y - sphereRadius - boundMin) / cellSize, last)
-      const y1 = clampCell((y + sphereRadius - boundMin) / cellSize, last)
-      const z0 = clampCell((z - sphereRadius - boundMin) / cellSize, last)
-      const z1 = clampCell((z + sphereRadius - boundMin) / cellSize, last)
+      const rr = spherePosData[o + 3]! // per-sphere radius written in pass 1
+      const x0 = clampCell((x - rr - boundMin) / cellSize, last)
+      const x1 = clampCell((x + rr - boundMin) / cellSize, last)
+      const y0 = clampCell((y - rr - boundMin) / cellSize, last)
+      const y1 = clampCell((y + rr - boundMin) / cellSize, last)
+      const z0 = clampCell((z - rr - boundMin) / cellSize, last)
+      const z1 = clampCell((z + rr - boundMin) / cellSize, last)
       for (let cz = z0; cz <= z1; cz++) {
         for (let cy = y0; cy <= y1; cy++) {
           const base = (cz * gridRes + cy) * gridRes
