@@ -26,6 +26,7 @@ uniform sampler2D uHistory;
 uniform float uBlend;   // EMA weight for the current sample (1.0 = reset)
 uniform uint uFrame;
 uniform bool uRandomize; // false = freeze the per-pixel sample pattern each frame
+uniform bool uIndirectEnabled; // false = direct lighting only (no bounce / color bleed)
 
 #pragma glslify: GridParams = require(./shared/gridParams.glsl)
 #pragma glslify: traceGrid = require(./shared/grid.glsl, GridParams=GridParams)
@@ -65,21 +66,24 @@ vec3 shade(vec3 ro, vec3 rd, float t, vec3 center, inout uint seed) {
   // one diffuse bounce: gather neighbour's lit colour (color bleeding).
   // randomize on  -> stochastic cosine-weighted sample (noisy, denoised over time)
   // randomize off -> deterministic bounce along the normal (noise-free, biased)
-  vec3 bdir = uRandomize ? cosineHemisphere(n, seed) : n;
-  vec3 bo = hp + n * (2.0 * EPS);
-  vec3 bcenter;
-  int bidx;
-  float bt = traceGrid(bo, bdir, uSpherePos, uCellRange, uIndexList, g, bcenter, bidx);
-  vec3 Li;
-  if (bt > 0.0) {
-    vec3 bhp = bo + bdir * bt;
-    vec3 bn = normalize(bhp - bcenter);
-    Li = uAlbedo * directIrradiance(bn, 1.0);
-  } else {
-    Li = skyColor(bdir, uBackground);
+  vec3 indirect = vec3(0.0);
+  if (uIndirectEnabled) {
+    vec3 bdir = uRandomize ? cosineHemisphere(n, seed) : n;
+    vec3 bo = hp + n * (2.0 * EPS);
+    vec3 bcenter;
+    int bidx;
+    float bt = traceGrid(bo, bdir, uSpherePos, uCellRange, uIndexList, g, bcenter, bidx);
+    vec3 Li;
+    if (bt > 0.0) {
+      vec3 bhp = bo + bdir * bt;
+      vec3 bn = normalize(bhp - bcenter);
+      Li = uAlbedo * directIrradiance(bn, 1.0);
+    } else {
+      Li = skyColor(bdir, uBackground);
+    }
+    // Lambertian cosine-weighted estimator: cos/pi and pi/cos cancel
+    indirect = uAlbedo * Li;
   }
-  // Lambertian cosine-weighted estimator: cos/pi and pi/cos cancel
-  vec3 indirect = uAlbedo * Li;
 
   return direct + indirect;
 }

@@ -42,6 +42,7 @@ let manyCountIdx = $state(2)
 let manyResIdx = $state(2)
 let manyBlend = $state(0.28)
 let manyRandomize = $state(true)
+let manyIndirect = $state(true)
 let manyCutaway = $state(false)
 let manyRadius = $state(0.012)
 let manyRadiusVar = $state(0)
@@ -77,6 +78,7 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
             resScale={manyResScale}
             blend={manyBlend}
             randomize={manyRandomize}
+            indirect={manyIndirect}
             sphereColor={sphereHex ?? '#ec7813'}
             bgColor={bgHex ?? '#33373d'}
             cutaway={manyCutaway}
@@ -159,6 +161,10 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
         <label class="ctl checkbox">
           <input type="checkbox" bind:checked={manyRandomize} />
           <span>Randomize samples</span>
+        </label>
+        <label class="ctl checkbox">
+          <input type="checkbox" bind:checked={manyIndirect} />
+          <span>Indirect bounce (color bleed)</span>
         </label>
       {/if}
       <label class="ctl checkbox">

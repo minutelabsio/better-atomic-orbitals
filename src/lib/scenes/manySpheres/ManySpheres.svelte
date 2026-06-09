@@ -1,9 +1,9 @@
 <script lang="ts">
 import { getContext, onMount } from 'svelte'
 import * as THREE from 'three'
-import displayShader from './manySpheresDisplay.frag.glsl'
 import fragmentShader from './manySpheres.frag.glsl'
 import vertexShader from './manySpheres.vert.glsl'
+import displayShader from './manySpheresDisplay.frag.glsl'
 import { SphereGrid } from './sphereGrid.js'
 
 const ctx = getContext<{
@@ -20,6 +20,7 @@ let {
   resScale = 0.5,
   blend = 0.5,
   randomize = false,
+  indirect = true,
   sphereColor = '#ec7813',
   bgColor = '#33373d',
   cutaway = false,
@@ -31,6 +32,7 @@ let {
   resScale?: number
   blend?: number
   randomize?: boolean
+  indirect?: boolean
   sphereColor?: string
   bgColor?: string
   cutaway?: boolean
@@ -73,6 +75,7 @@ onMount(() => {
     uBlend: { value: 1 },
     uFrame: { value: 0 },
     uRandomize: { value: true },
+    uIndirectEnabled: { value: true },
   }
   const traceMaterial = new THREE.ShaderMaterial({
     vertexShader,
@@ -157,6 +160,7 @@ onMount(() => {
     uniforms.uBlend.value = reset ? 1 : blend
     uniforms.uFrame.value = frame
     uniforms.uRandomize.value = randomize
+    uniforms.uIndirectEnabled.value = indirect
     albedoColor.set(sphereColor)
     uniforms.uAlbedo.value.set(albedoColor.r, albedoColor.g, albedoColor.b)
     bgColor3.set(bgColor)
