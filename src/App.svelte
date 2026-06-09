@@ -40,6 +40,8 @@ let selectedLutIdx = $state(0)
 let lightingPresetIdx = $state(0)
 let manyCountIdx = $state(2)
 let manyResIdx = $state(2)
+let manyM = $state(1)
+let manySpeed = $state(0.001)
 let manyBlend = $state(0.28)
 let manyObjBlend = $state(0.05)
 let manyObjSamples = $state(1)
@@ -63,7 +65,7 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
     {#if selected.id === 'tinySpheres'}
       <TinySpheres presetIdx={lightingPresetIdx} />
     {:else if selected.id === 'manySpheres'}
-      {#key `${manyCount}-${giStrategy}`}
+      {#key `${manyCount}-${giStrategy}-${manyM}`}
         {#if giStrategy === 1}
           <ManySpheresObjGI
             count={manyCount}
@@ -76,6 +78,8 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
             cutawayFeather={manyCutawayFeather}
             sphereRadius={manyRadius}
             radiusVariation={manyRadiusVar}
+            m={manyM}
+            speed={manySpeed}
           />
         {:else}
           <ManySpheres
@@ -90,6 +94,8 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
             cutawayFeather={manyCutawayFeather}
             sphereRadius={manyRadius}
             radiusVariation={manyRadiusVar}
+            m={manyM}
+            speed={manySpeed}
           />
         {/if}
       {/key}
@@ -133,6 +139,20 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           <option value={i}>{r.label}</option>
         {/each}
       </select>
+      <label class="ctl">
+        <span>m (swirl): {manyM}</span>
+        <input type="range" min="-3" max="3" step="1" bind:value={manyM} />
+      </label>
+      <label class="ctl">
+        <span>Speed: {manySpeed.toFixed(4)}</span>
+        <input
+          type="range"
+          min="0"
+          max="0.005"
+          step="0.0001"
+          bind:value={manySpeed}
+        />
+      </label>
       {#if giStrategy === 0}
         <label class="ctl">
           <span>Blend: {manyBlend.toFixed(2)}</span>

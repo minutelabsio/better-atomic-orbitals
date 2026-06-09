@@ -1,11 +1,14 @@
 import * as THREE from 'three'
+import { probabilityCurrentOmega } from '../../orbital/velocity.js'
 
 export interface SphereGridOptions {
   count: number
   clusterRadius?: number
   sphereRadius?: number
-  rotationSpeed?: number
-  speedEpsilon?: number
+  /** magnetic quantum number m: drives the probability-current swirl, omega ∝ m/rho² */
+  m?: number
+  /** softening added to rho² so the swirl stays finite near the spin axis */
+  omegaSoftening?: number
   xzGap?: number
   /** number of grid cells per axis */
   gridRes?: number
@@ -13,6 +16,20 @@ export interface SphereGridOptions {
   boundRadius?: number
   /** index-list capacity as a multiple of count (covers AABB straddle) */
   capacityFactor?: number
+}
+
+/** Per-frame options for {@link SphereGrid.update}. */
+export interface SphereGridUpdateOptions {
+  /** cull (and feather) the top-front quarter (y>0 && z>0) */
+  cutaway?: boolean
+  /** base radius of each sphere */
+  sphereRadius?: number
+  /** fraction (0..1); each radius scaled by 1 + radiusVariation * stableRand[-1,1] */
+  radiusVariation?: number
+  /** world-space band over which spheres shrink to zero approaching the cut */
+  cutawayFeather?: number
+  /** visual speed scale (K) applied to each sphere's stored angular velocity */
+  speedScale?: number
 }
 
 /** ceil(sqrt) packing into a 2D texture; width chosen so width*height >= n */
@@ -80,8 +97,8 @@ export class SphereGrid {
       count,
       clusterRadius = 1.4,
       sphereRadius = 0.012,
-      rotationSpeed = -0.001,
-      speedEpsilon = 0.1,
+      m = 1,
+      omegaSoftening = 0.02,
       xzGap = 0.08,
       gridRes = 32,
       // generous fixed margin so live radius changes stay within the domain
@@ -120,7 +137,9 @@ export class SphereGrid {
       this.radii[i] = r
       this.yPos[i] = v.y
       this.theta[i] = Math.atan2(v.z, v.x)
-      this.speed[i] = rotationSpeed / (r + speedEpsilon) ** 2
+      // store the per-sphere angular velocity (probability current); a visual
+      // speed scale K is applied per frame in update(), so K can change live.
+      this.speed[i] = probabilityCurrentOmega(r, m, omegaSoftening)
       this.radiusRand[i] = Math.random() * 2 - 1 // uniform [-1, 1]
     }
 
@@ -147,23 +166,19 @@ export class SphereGrid {
   }
 
   /**
-   * Advance orbits one step and rebuild the grid.
-   * @param cutaway when true, spheres in the top-front quarter (y>0 && z>0) are
-   *   excluded from the grid entirely — empty cells there, so rays traverse the
-   *   opening cheaply instead of marching through full-but-skipped cells.
-   * @param sphereRadius base radius of each sphere.
-   * @param radiusVariation fraction (0..1); each sphere's radius is scaled by
-   *   1 + radiusVariation * rand, where rand is its stable uniform [-1, 1].
-   * @param cutawayFeather world-space band width over which spheres shrink to
-   *   zero as they approach the cut quadrant (so they fade by size instead of
-   *   popping in/out). 0 = hard edge (original behaviour).
+   * Advance orbits one step (theta += speedScale * omega) and rebuild the grid.
+   * See {@link SphereGridUpdateOptions}. Spheres in the cut quadrant (y>0 && z>0)
+   * are excluded from the grid (and feathered) when `cutaway` is set, so rays
+   * traverse the opening cheaply instead of marching through skipped cells.
    */
-  update(
-    cutaway = false,
-    sphereRadius = this.sphereRadius,
-    radiusVariation = 0,
-    cutawayFeather = 0,
-  ): void {
+  update(opts: SphereGridUpdateOptions = {}): void {
+    const {
+      cutaway = false,
+      sphereRadius = this.sphereRadius,
+      radiusVariation = 0,
+      cutawayFeather = 0,
+      speedScale = 1,
+    } = opts
     const { count, gridRes, cellSize, boundMin, indexCapacity } = this
     const { theta, radii, yPos, speed } = this
     // explicit member reads (biome's unused-private check misses destructure reads)
@@ -178,7 +193,7 @@ export class SphereGrid {
 
     // Pass 1: advance positions, write spherePos, count cell occupancy.
     for (let i = 0; i < count; i++) {
-      const th = theta[i]! + speed[i]!
+      const th = theta[i]! + speedScale * speed[i]!
       theta[i] = th
       const r = radii[i]!
       const x = r * Math.cos(th)

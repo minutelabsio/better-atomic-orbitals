@@ -1,8 +1,27 @@
 # TODO: Generate hydrogen-orbital point clouds analytically (replicate the video)
 
-**Status:** not started — spec only
+**Status:** in progress — velocity strategy done; distribution sampling next.
 **Reference:** `reference/Animate Particles Spin Local.py` (the original Blender animator)
 **Target look:** https://www.youtube.com/watch?v=W2Xb2GFK2yc
+
+## Progress
+
+- **[done] Motion (§2).** `src/lib/orbital/velocity.ts` exports the pure
+  `probabilityCurrentOmega(rho, m, softening)` = `m/(rho²+softening)`. `SphereGrid`
+  bakes per-sphere `speed = ω` at seed time (constructor option `m`); the visual
+  speed scale `K` is applied live per frame via `update({ speedScale })`, so K is a
+  live slider and `m` (orbital identity) triggers a remount. UI: "m (swirl)" + "Speed"
+  in `App.svelte`. `update()` was refactored to an options object on the way.
+- **[todo] Distribution (§1), size (§3), colour (§4), cutaway modes (§5), layout (§6).**
+
+### Coordinate plan (decided)
+
+Three frames, one per purpose: **spherical** `(r,θ,φ)` for *sampling* the shape (r,θ
+marginals + uniform φ); **cylindrical** `(ρ,φ,y)` for *motion* (rigid azimuthal spin,
+`ω=K·m/ρ²`, `ρ=r·sinθ`, `y=r·cosθ`) — already how `SphereGrid` stores/animates;
+**cartesian** for the *shader*, recomputed each frame in the hot loop. So: sample in
+spherical → convert once to cylindrical at seed time (compute ω there) → emit xyz per
+frame. A `coords.ts` of single-purpose conversions arrives with the sampling slice.
 
 ## Context
 

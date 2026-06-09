@@ -27,6 +27,8 @@ let {
   cutawayFeather = 0,
   sphereRadius = 0.012,
   radiusVariation = 0,
+  m = 1,
+  speed = 0.001,
 }: {
   count?: number
   gridRes?: number
@@ -39,6 +41,8 @@ let {
   cutawayFeather?: number
   sphereRadius?: number
   radiusVariation?: number
+  m?: number
+  speed?: number
 } = $props()
 
 // reusable scratch colors; hex strings (sRGB) -> linear working values
@@ -68,7 +72,7 @@ function makeSphereTarget(w: number, h: number): THREE.WebGLRenderTarget {
 }
 
 onMount(() => {
-  const grid = new SphereGrid({ count, gridRes })
+  const grid = new SphereGrid({ count, gridRes, m })
   const sphereTexW = grid.spherePosTexW
   const sphereTexH = (grid.spherePosTex.image as { height: number }).height
 
@@ -166,7 +170,13 @@ onMount(() => {
     const renderer = ctx.renderer
     if (!renderer) return
 
-    grid.update(cutaway, sphereRadius, radiusVariation, cutawayFeather)
+    grid.update({
+      cutaway,
+      sphereRadius,
+      radiusVariation,
+      cutawayFeather,
+      speedScale: speed,
+    })
 
     albedoColor.set(sphereColor)
     bgColor3.set(bgColor)

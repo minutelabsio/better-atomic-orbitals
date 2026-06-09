@@ -27,6 +27,8 @@ let {
   cutawayFeather = 0,
   sphereRadius = 0.012,
   radiusVariation = 0,
+  m = 1,
+  speed = 0.001,
 }: {
   count?: number
   gridRes?: number
@@ -40,6 +42,8 @@ let {
   cutawayFeather?: number
   sphereRadius?: number
   radiusVariation?: number
+  m?: number
+  speed?: number
 } = $props()
 
 // reusable scratch colors; hex strings (sRGB) -> linear working values
@@ -57,7 +61,7 @@ function makeTarget(w: number, h: number): THREE.WebGLRenderTarget {
 }
 
 onMount(() => {
-  const grid = new SphereGrid({ count, gridRes })
+  const grid = new SphereGrid({ count, gridRes, m })
 
   const uniforms = {
     uCameraPos: { value: new THREE.Vector3() },
@@ -126,7 +130,13 @@ onMount(() => {
     const renderer = ctx.renderer
     if (!renderer) return
 
-    grid.update(cutaway, sphereRadius, radiusVariation, cutawayFeather)
+    grid.update({
+      cutaway,
+      sphereRadius,
+      radiusVariation,
+      cutawayFeather,
+      speedScale: speed,
+    })
 
     // size the accumulation targets to the (scaled) drawing buffer
     renderer.getDrawingBufferSize(drawBuf)
