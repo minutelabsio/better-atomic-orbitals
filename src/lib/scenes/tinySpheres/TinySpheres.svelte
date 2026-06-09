@@ -11,7 +11,7 @@ const { scene, onFrame } = getContext<{
 
 // --- scene parameters ---
 const COUNT = 50000
-const CLUSTER_RADIUS = 1.4 // radius of the sphere volume they're distributed in
+const CLUSTER_RADIUS = 1.6 // radius of the sphere volume they're distributed in
 const SPHERE_RADIUS = 0.018 // radius of each individual sphere
 const SPHERE_SEGMENTS = 7 // width segments (height = SPHERE_SEGMENTS - 2)
 const COLOR = new THREE.Color().setHSL(28 / 360, 1, 0.4819)

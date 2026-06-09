@@ -33,6 +33,8 @@ let selectedLutIdx = $state(0)
 let lightingPresetIdx = $state(0)
 let manyCountIdx = $state(2)
 let manyResIdx = $state(0)
+let manyBlend = $state(0.12)
+let manyRandomize = $state(true)
 
 const selected = $derived(scenes[selectedSceneIdx]!)
 const lutPath = $derived(luts[selectedLutIdx]!.path)
@@ -46,7 +48,12 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
       <TinySpheres presetIdx={lightingPresetIdx} />
     {:else if selected.id === 'manySpheres'}
       {#key manyCount}
-        <ManySpheres count={manyCount} resScale={manyResScale} />
+        <ManySpheres
+          count={manyCount}
+          resScale={manyResScale}
+          blend={manyBlend}
+          randomize={manyRandomize}
+        />
       {/key}
     {:else}
       <RaySphereScene />
@@ -83,6 +90,20 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           <option value={i}>{r.label}</option>
         {/each}
       </select>
+      <label class="ctl">
+        <span>Blend: {manyBlend.toFixed(2)}</span>
+        <input
+          type="range"
+          min="0.02"
+          max="1"
+          step="0.01"
+          bind:value={manyBlend}
+        />
+      </label>
+      <label class="ctl checkbox">
+        <input type="checkbox" bind:checked={manyRandomize} />
+        <span>Randomize samples</span>
+      </label>
     {/if}
   </div>
 </div>
@@ -112,5 +133,36 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
     font-size: 0.8rem;
     cursor: pointer;
     backdrop-filter: blur(6px);
+  }
+
+  .ctl {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    background: rgba(10, 10, 20, 0.75);
+    color: #aac8e0;
+    border: 1px solid rgba(100, 160, 220, 0.35);
+    border-radius: 6px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.8rem;
+    backdrop-filter: blur(6px);
+  }
+
+  .ctl input[type='range'] {
+    width: 100%;
+    cursor: pointer;
+    accent-color: #66a0dc;
+  }
+
+  .ctl.checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.45rem;
+    cursor: pointer;
+  }
+
+  .ctl.checkbox input {
+    cursor: pointer;
+    accent-color: #66a0dc;
   }
 </style>

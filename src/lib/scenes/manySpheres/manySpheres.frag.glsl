@@ -24,6 +24,7 @@ uniform vec3 uAlbedo;
 uniform sampler2D uHistory;
 uniform float uBlend;   // EMA weight for the current sample (1.0 = reset)
 uniform uint uFrame;
+uniform bool uRandomize; // false = freeze the per-pixel sample pattern each frame
 
 #define MAX_STEPS 256
 #define MAX_PER_CELL 64
@@ -44,7 +45,7 @@ const float AMBIENT = 0.02;
 
 vec3 skyColor(vec3 rd) {
   float t = 0.5 * (rd.y + 1.0);
-  return mix(vec3(0.10, 0.11, 0.14), vec3(0.30, 0.36, 0.46), t);
+  return mix(vec3(0.10, 0.11, 0.11), vec3(0.40, 0.46, 0.46), t);
 }
 
 vec4 fetchSphere(int i) {
@@ -185,8 +186,10 @@ vec3 shade(vec3 ro, vec3 rd, float t, vec3 center, inout uint seed) {
     L1_COL * max(dot(n, L1_DIR), 0.0) +
     L2_COL * max(dot(n, L2_DIR), 0.0));
 
-  // one cosine-weighted bounce: gather neighbour's lit colour (color bleeding)
-  vec3 bdir = cosineHemisphere(n, seed);
+  // one diffuse bounce: gather neighbour's lit colour (color bleeding).
+  // randomize on  -> stochastic cosine-weighted sample (noisy, denoised over time)
+  // randomize off -> deterministic bounce along the normal (noise-free, biased)
+  vec3 bdir = uRandomize ? cosineHemisphere(n, seed) : n;
   vec3 bo = hp + n * (2.0 * EPS);
   vec3 bcenter;
   float bt = traceGrid(bo, bdir, bcenter);
@@ -210,6 +213,7 @@ void main() {
   vec3 ro = uCameraPos;
   vec3 rd = normalize(world.xyz - ro);
 
+  // per-frame variation is what lets temporal accumulation average the noise down
   uint seed = uint(gl_FragCoord.x) * 1973u +
               uint(gl_FragCoord.y) * 9277u +
               uFrame * 26699u + 1u;

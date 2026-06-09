@@ -17,13 +17,15 @@ const { scene, camera, onFrame } = ctx
 let {
   count = 50000,
   gridRes = 48,
-  resScale = 1,
-  blend = 0.12,
+  resScale = 0.5,
+  blend = 0.5,
+  randomize = false,
 }: {
   count?: number
   gridRes?: number
   resScale?: number
   blend?: number
+  randomize?: boolean
 } = $props()
 
 const ALBEDO = new THREE.Color().setHSL(28 / 360, 0.85, 0.5)
@@ -57,6 +59,7 @@ onMount(() => {
     uHistory: { value: null as THREE.Texture | null },
     uBlend: { value: 1 },
     uFrame: { value: 0 },
+    uRandomize: { value: true },
   }
   const traceMaterial = new THREE.ShaderMaterial({
     vertexShader,
@@ -122,13 +125,13 @@ onMount(() => {
 
     // camera-move detection -> snap accumulation to the current sample
     camera.updateMatrixWorld()
-    if (
-      !reset &&
-      (camera.position.distanceToSquared(prevPos) > 1e-9 ||
-        Math.abs(camera.quaternion.dot(prevQuat)) < 0.9999995)
-    ) {
-      reset = true
-    }
+    // if (
+    //   !reset &&
+    //   (camera.position.distanceToSquared(prevPos) > 1e-9 ||
+    //     Math.abs(camera.quaternion.dot(prevQuat)) < 0.9999995)
+    // ) {
+    //   reset = true
+    // }
     prevPos.copy(camera.position)
     prevQuat.copy(camera.quaternion)
 
@@ -140,6 +143,7 @@ onMount(() => {
     uniforms.uHistory.value = read.texture
     uniforms.uBlend.value = reset ? 1 : blend
     uniforms.uFrame.value = frame
+    uniforms.uRandomize.value = randomize
 
     renderer.setRenderTarget(write)
     renderer.render(traceScene, traceCamera)
