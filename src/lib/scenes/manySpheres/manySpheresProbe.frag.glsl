@@ -32,6 +32,7 @@ uniform vec3 uBackground;
 uniform sampler2D uIndirectHistory;
 uniform float uBlend;   // EMA weight for the current sample (1.0 = reset)
 uniform uint uFrame;
+uniform int uSamples;   // bounce samples averaged per frame
 
 #pragma glslify: GridParams = require(./shared/gridParams.glsl)
 #pragma glslify: traceGrid = require(./shared/grid.glsl, GridParams=GridParams)
@@ -76,28 +77,35 @@ void main() {
   float radius = sp.w;
 
   uint seed = uint(index) * 9781u + uFrame * 6271u + 1u;
-
-  // one random surface point + one cosine-weighted bounce (view-independent)
-  vec3 nrm = randomDir(seed);
-  vec3 hp = center + nrm * radius;
-  vec3 bdir = cosineHemisphere(nrm, seed);
-  vec3 bo = hp + nrm * (2.0 * EPS);
-
   GridParams g = gridParams();
-  vec3 bcenter;
-  int bidx;
-  float bt = traceGrid(bo, bdir, uSpherePos, uCellRange, uIndexList, g, bcenter, bidx);
 
-  vec3 Li;
-  if (bt > 0.0) {
-    vec3 bhp = bo + bdir * bt;
-    vec3 bn = normalize(bhp - bcenter);
-    Li = uAlbedo * directIrradiance(bn, 1.0);
-  } else {
-    Li = skyColor(bdir, uBackground);
+  // Average several bounce samples this frame. Each draws a random surface point
+  // AND a random bounce direction, so a single sample has high variance (sky vs
+  // neighbour); averaging here, on top of the per-sphere temporal EMA below,
+  // keeps the whole-sphere value from flashing frame to frame.
+  vec3 acc = vec3(0.0);
+  for (int s = 0; s < uSamples; s++) {
+    vec3 nrm = randomDir(seed);
+    vec3 hp = center + nrm * radius;
+    vec3 bdir = cosineHemisphere(nrm, seed);
+    vec3 bo = hp + nrm * (2.0 * EPS);
+
+    vec3 bcenter;
+    int bidx;
+    float bt = traceGrid(bo, bdir, uSpherePos, uCellRange, uIndexList, g, bcenter, bidx);
+
+    vec3 Li;
+    if (bt > 0.0) {
+      vec3 bhp = bo + bdir * bt;
+      vec3 bn = normalize(bhp - bcenter);
+      Li = uAlbedo * directIrradiance(bn, 1.0);
+    } else {
+      Li = skyColor(bdir, uBackground);
+    }
+    // matches the screen-space shader's indirect term (uAlbedo * Li)
+    acc += uAlbedo * Li;
   }
-  // matches the screen-space shader's indirect term (uAlbedo * Li)
-  vec3 indirectSample = uAlbedo * Li;
+  vec3 indirectSample = acc / float(max(uSamples, 1));
 
   vec3 result = mix(prev, indirectSample, uBlend);
   fragColor = vec4(result, 1.0);

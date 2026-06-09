@@ -19,7 +19,8 @@ let {
   count = 50000,
   gridRes = 48,
   resScale = 0.5,
-  blend = 0.1,
+  blend = 0.05,
+  samples = 8,
   sphereColor = '#ec7813',
   bgColor = '#33373d',
   cutaway = false,
@@ -30,6 +31,7 @@ let {
   gridRes?: number
   resScale?: number
   blend?: number
+  samples?: number
   sphereColor?: string
   bgColor?: string
   cutaway?: boolean
@@ -91,6 +93,7 @@ onMount(() => {
     uIndirectHistory: { value: null as THREE.Texture | null },
     uBlend: { value: 1 },
     uFrame: { value: 0 },
+    uSamples: { value: samples },
   }
   const probeMaterial = new THREE.ShaderMaterial({
     vertexShader,
@@ -178,6 +181,7 @@ onMount(() => {
     probeUniforms.uIndirectHistory.value = indirectRead.texture
     probeUniforms.uBlend.value = frame === 0 ? 1 : blend
     probeUniforms.uFrame.value = frame
+    probeUniforms.uSamples.value = samples
     renderer.setRenderTarget(indirectWrite)
     renderer.render(probeScene, offscreenCamera)
     const tmpI = indirectRead

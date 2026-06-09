@@ -41,6 +41,8 @@ let lightingPresetIdx = $state(0)
 let manyCountIdx = $state(2)
 let manyResIdx = $state(2)
 let manyBlend = $state(0.28)
+let manyObjBlend = $state(0.05)
+let manyObjSamples = $state(8)
 let manyRandomize = $state(true)
 let manyIndirect = $state(true)
 let manyCutaway = $state(false)
@@ -65,7 +67,8 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           <ManySpheresObjGI
             count={manyCount}
             resScale={manyResScale}
-            blend={manyBlend}
+            blend={manyObjBlend}
+            samples={manyObjSamples}
             sphereColor={sphereHex ?? '#ec7813'}
             bgColor={bgHex ?? '#33373d'}
             cutaway={manyCutaway}
@@ -127,16 +130,39 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           <option value={i}>{r.label}</option>
         {/each}
       </select>
-      <label class="ctl">
-        <span>Blend: {manyBlend.toFixed(2)}</span>
-        <input
-          type="range"
-          min="0.02"
-          max="1"
-          step="0.01"
-          bind:value={manyBlend}
-        />
-      </label>
+      {#if giStrategy === 0}
+        <label class="ctl">
+          <span>Blend: {manyBlend.toFixed(2)}</span>
+          <input
+            type="range"
+            min="0.02"
+            max="1"
+            step="0.01"
+            bind:value={manyBlend}
+          />
+        </label>
+      {:else}
+        <label class="ctl">
+          <span>Accumulation: {manyObjBlend.toFixed(3)}</span>
+          <input
+            type="range"
+            min="0.01"
+            max="0.5"
+            step="0.005"
+            bind:value={manyObjBlend}
+          />
+        </label>
+        <label class="ctl">
+          <span>Samples/frame: {manyObjSamples}</span>
+          <input
+            type="range"
+            min="1"
+            max="32"
+            step="1"
+            bind:value={manyObjSamples}
+          />
+        </label>
+      {/if}
       <label class="ctl">
         <span>Radius: {manyRadius.toFixed(3)}</span>
         <input
