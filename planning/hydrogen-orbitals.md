@@ -1,6 +1,8 @@
 # TODO: Generate hydrogen-orbital point clouds analytically (replicate the video)
 
-**Status:** in progress — velocity strategy done; distribution sampling next.
+**Status:** in progress — velocity + distribution sampling done (single selectable
+orbital, live switch with no remount). Remaining: size (§3), colour (§4), cutaway
+modes (§5), multi-orbital layout (§6).
 **Reference:** `reference/Animate Particles Spin Local.py` (the original Blender animator)
 **Target look:** https://www.youtube.com/watch?v=W2Xb2GFK2yc
 
@@ -12,7 +14,14 @@
   speed scale `K` is applied live per frame via `update({ speedScale })`, so K is a
   live slider and `m` (orbital identity) triggers a remount. UI: "m (swirl)" + "Speed"
   in `App.svelte`. `update()` was refactored to an options object on the way.
-- **[todo] Distribution (§1), size (§3), colour (§4), cutaway modes (§5), layout (§6).**
+- **[done] Distribution (§1).** `src/lib/orbital/`: `laguerre.ts`, `legendre.ts`
+  (poly recurrences), `radialDensity.ts` (|R|²r²), `angularDensity.ts` (|Y|²sinθ),
+  `inverseCdfSampler.ts` (tabulate→CDF→invert), `coords.ts`, `sampleOrbital.ts`
+  (3 independent 1-D marginals → cylindrical motion state). `SphereGrid.seed/reseed`
+  consume it; the radial extent is fit to `clusterRadius` (99th-pct → clusterRadius,
+  far tail clamped). Orbital dropdown in `App.svelte`; changing it calls
+  `grid.reseed(n,l,m)` via a `$effect` — **no remount** (orbital is not in the `{#key}`).
+- **[todo] Size (§3), colour (§4), cutaway modes (§5), multi-orbital layout (§6).**
 
 ### Coordinate plan (decided)
 

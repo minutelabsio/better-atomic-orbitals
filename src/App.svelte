@@ -27,6 +27,19 @@ const giStrategies = [
   { label: 'Screen-space temporal', value: 0 },
   { label: 'Object-space per-sphere', value: 1 },
 ]
+
+// all valid hydrogen orbitals up to n = 6 (l < n, |m| <= l)
+const orbitalLetters = ['s', 'p', 'd', 'f', 'g', 'h']
+const orbitals: { n: number; l: number; m: number; label: string }[] = []
+for (let n = 1; n <= 6; n++) {
+  for (let l = 0; l < n; l++) {
+    for (let mq = -l; mq <= l; mq++) {
+      const letter = orbitalLetters[l] ?? `l${l}`
+      const mTag = l > 0 ? ` m=${mq > 0 ? '+' : ''}${mq}` : ''
+      orbitals.push({ n, l, m: mq, label: `${n}${letter}${mTag}` })
+    }
+  }
+}
 const manyCounts = [2000, 10000, 50000, 100000]
 const manyResScales = [
   { label: 'Full res', value: 1 },
@@ -40,7 +53,9 @@ let selectedLutIdx = $state(0)
 let lightingPresetIdx = $state(0)
 let manyCountIdx = $state(2)
 let manyResIdx = $state(2)
-let manyM = $state(1)
+let orbitalIdx = $state(
+  orbitals.findIndex((o) => o.n === 2 && o.l === 1 && o.m === 1),
+)
 let manySpeed = $state(0.001)
 let manyBlend = $state(0.28)
 let manyObjBlend = $state(0.05)
@@ -54,6 +69,7 @@ let manyRadiusVar = $state(0)
 let sphereHex = $state<string | null>('#f1921f')
 let bgHex = $state<string | null>('#ffffff')
 
+const orbital = $derived(orbitals[orbitalIdx]!)
 const selected = $derived(scenes[selectedSceneIdx]!)
 const lutPath = $derived(luts[selectedLutIdx]!.path)
 const manyCount = $derived(manyCounts[manyCountIdx]!)
@@ -65,7 +81,7 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
     {#if selected.id === 'tinySpheres'}
       <TinySpheres presetIdx={lightingPresetIdx} />
     {:else if selected.id === 'manySpheres'}
-      {#key `${manyCount}-${giStrategy}-${manyM}`}
+      {#key `${manyCount}-${giStrategy}`}
         {#if giStrategy === 1}
           <ManySpheresObjGI
             count={manyCount}
@@ -78,7 +94,9 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
             cutawayFeather={manyCutawayFeather}
             sphereRadius={manyRadius}
             radiusVariation={manyRadiusVar}
-            m={manyM}
+            n={orbital.n}
+            l={orbital.l}
+            m={orbital.m}
             speed={manySpeed}
           />
         {:else}
@@ -94,7 +112,9 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
             cutawayFeather={manyCutawayFeather}
             sphereRadius={manyRadius}
             radiusVariation={manyRadiusVar}
-            m={manyM}
+            n={orbital.n}
+            l={orbital.l}
+            m={orbital.m}
             speed={manySpeed}
           />
         {/if}
@@ -139,10 +159,11 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           <option value={i}>{r.label}</option>
         {/each}
       </select>
-      <label class="ctl">
-        <span>m (swirl): {manyM}</span>
-        <input type="range" min="-3" max="3" step="1" bind:value={manyM} />
-      </label>
+      <select bind:value={orbitalIdx}>
+        {#each orbitals as o, i}
+          <option value={i}>{o.label}</option>
+        {/each}
+      </select>
       <label class="ctl">
         <span>Speed: {manySpeed.toFixed(4)}</span>
         <input

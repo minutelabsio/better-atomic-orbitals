@@ -1,15 +1,18 @@
 import * as THREE from 'three'
-import { probabilityCurrentOmega } from '../../orbital/velocity.js'
+import { sampleOrbital } from '../../orbital/sampleOrbital.js'
 
 export interface SphereGridOptions {
   count: number
   clusterRadius?: number
   sphereRadius?: number
-  /** magnetic quantum number m: drives the probability-current swirl, omega ∝ m/rho² */
+  /** principal quantum number n (>= 1) */
+  n?: number
+  /** azimuthal quantum number l (0 <= l < n) */
+  l?: number
+  /** magnetic quantum number m (|m| <= l): sets the swirl, omega ∝ m/rho² */
   m?: number
   /** softening added to rho² so the swirl stays finite near the spin axis */
   omegaSoftening?: number
-  xzGap?: number
   /** number of grid cells per axis */
   gridRes?: number
   /** half-extent of the (cubic) grid domain; must comfortably contain the cluster */
@@ -87,6 +90,16 @@ export class SphereGrid {
   /** stable per-sphere uniform random in [-1, 1] for size variation */
   private readonly radiusRand: Float32Array
 
+  /** seeding params kept for in-place reseed */
+  private readonly clusterRadius: number
+  private readonly omegaSoftening: number
+  /** current orbital (n, l, m) so reseed can no-op when unchanged */
+  private curN = 0
+  private curL = -1
+  private curM = 0
+  /** ⟨r⟩ of the current orbital in world units */
+  meanRadius = 0
+
   private readonly spherePosData: Float32Array
   private readonly cellRangeData: Float32Array
   private readonly indexListData: Float32Array
@@ -97,9 +110,10 @@ export class SphereGrid {
       count,
       clusterRadius = 1.4,
       sphereRadius = 0.012,
-      m = 1,
+      n = 1,
+      l = 0,
+      m = 0,
       omegaSoftening = 0.02,
-      xzGap = 0.08,
       gridRes = 32,
       // generous fixed margin so live radius changes stay within the domain
       boundRadius = clusterRadius + 0.1,
@@ -108,6 +122,8 @@ export class SphereGrid {
 
     this.count = count
     this.sphereRadius = sphereRadius
+    this.clusterRadius = clusterRadius
+    this.omegaSoftening = omegaSoftening
     this.gridRes = gridRes
     this.numCells = gridRes * gridRes * gridRes
     this.boundMin = -boundRadius
@@ -120,26 +136,8 @@ export class SphereGrid {
     this.speed = new Float32Array(count)
     this.radiusRand = new Float32Array(count)
 
-    // --- seed orbital parameters (mirrors TinySpheres.svelte) ---
-    const v = new THREE.Vector3()
+    // stable per-sphere size jitter (independent of the orbital, seeded once)
     for (let i = 0; i < count; i++) {
-      do {
-        v.set(
-          THREE.MathUtils.randFloatSpread(2),
-          THREE.MathUtils.randFloatSpread(2),
-          THREE.MathUtils.randFloatSpread(2),
-        )
-        if (v.lengthSq() === 0) v.set(1, 0, 0)
-        v.normalize().multiplyScalar(clusterRadius * Math.cbrt(Math.random()))
-      } while (Math.abs(v.y) < xzGap)
-
-      const r = Math.sqrt(v.x * v.x + v.z * v.z)
-      this.radii[i] = r
-      this.yPos[i] = v.y
-      this.theta[i] = Math.atan2(v.z, v.x)
-      // store the per-sphere angular velocity (probability current); a visual
-      // speed scale K is applied per frame in update(), so K can change live.
-      this.speed[i] = probabilityCurrentOmega(r, m, omegaSoftening)
       this.radiusRand[i] = Math.random() * 2 - 1 // uniform [-1, 1]
     }
 
@@ -162,7 +160,34 @@ export class SphereGrid {
 
     this.counts = new Int32Array(this.numCells)
 
+    this.seed(n, l, m) // sample the initial orbital
     this.update() // initial build so first frame has data
+  }
+
+  /** Sample orbital (n, l, m) into the per-sphere motion arrays. */
+  private seed(n: number, l: number, m: number): void {
+    const s = sampleOrbital(n, l, m, this.count, {
+      clusterRadius: this.clusterRadius,
+      omegaSoftening: this.omegaSoftening,
+    })
+    this.radii.set(s.rho)
+    this.yPos.set(s.y)
+    this.theta.set(s.phi)
+    this.speed.set(s.omega)
+    this.meanRadius = s.meanRadius
+    this.curN = n
+    this.curL = l
+    this.curM = m
+  }
+
+  /**
+   * Re-sample a (possibly) different orbital in place — no texture reallocation,
+   * so the scene can switch orbitals without a remount. No-ops if (n, l, m) is
+   * unchanged. The next update() rebuilds the grid from the new positions.
+   */
+  reseed(n: number, l: number, m: number): void {
+    if (n === this.curN && l === this.curL && m === this.curM) return
+    this.seed(n, l, m)
   }
 
   /**

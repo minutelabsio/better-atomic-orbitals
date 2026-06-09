@@ -27,7 +27,9 @@ let {
   cutawayFeather = 0,
   sphereRadius = 0.012,
   radiusVariation = 0,
-  m = 1,
+  n = 1,
+  l = 0,
+  m = 0,
   speed = 0.001,
 }: {
   count?: number
@@ -41,9 +43,19 @@ let {
   cutawayFeather?: number
   sphereRadius?: number
   radiusVariation?: number
+  n?: number
+  l?: number
   m?: number
   speed?: number
 } = $props()
+
+// exposed as state so the reseed effect re-runs once the grid exists (onMount)
+let gridState = $state<SphereGrid>()
+
+// switch orbitals in place (no remount). reseed() no-ops when (n,l,m) is unchanged.
+$effect(() => {
+  if (gridState) gridState.reseed(n, l, m)
+})
 
 // reusable scratch colors; hex strings (sRGB) -> linear working values
 const albedoColor = new THREE.Color()
@@ -72,7 +84,8 @@ function makeSphereTarget(w: number, h: number): THREE.WebGLRenderTarget {
 }
 
 onMount(() => {
-  const grid = new SphereGrid({ count, gridRes, m })
+  const grid = new SphereGrid({ count, gridRes, n, l, m })
+  gridState = grid
   const sphereTexW = grid.spherePosTexW
   const sphereTexH = (grid.spherePosTex.image as { height: number }).height
 

@@ -12,6 +12,14 @@ Strategy:
 
 Run/verify: `pnpm dev`. No GPU in the sandbox — screenshot via headless Chromium + SwiftShader (software WebGL2); the setup is non-obvious, so check agent memory before reinventing it. `pnpm typecheck` must stay clean.
 
+## Code organization
+
+Keep functionality in **small, single-purpose modules organized by purpose** — avoid large sprawling source files. Prefer extracting a pure, importable helper over inlining, and build shared utilities incrementally as they're needed (not one giant module up front). Examples in the tree:
+- GLSL is modularized into `src/lib/scenes/manySpheres/shared/*.glsl` (rng, intersect, grid traversal, lighting, …), pulled in via glslify `#pragma glslify: require`. Gotchas when editing these are documented in agent memory (`glslify-gotchas`).
+- Orbital physics lives in `src/lib/orbital/` as one concern per file: `velocity.ts`, `coords.ts`, `laguerre.ts`, `legendre.ts`, `inverseCdfSampler.ts`, `radialDensity.ts`, `angularDensity.ts`, `sampleOrbital.ts`.
+
+Reason in the most natural coordinate system for each concern and convert only at the boundaries: **spherical** for sampling the orbital shape → **cylindrical** `(ρ, φ, y)` for the motion (it's a rigid azimuthal spin; this is what `SphereGrid` stores/animates) → **cartesian** for the shader (per-frame hot loop). See `planning/hydrogen-orbitals.md`.
+
 ---
 
 You are able to use the Svelte MCP server, where you have access to comprehensive Svelte 5 and SvelteKit documentation. Here's how to use the available tools effectively:
