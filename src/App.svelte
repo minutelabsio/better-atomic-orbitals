@@ -46,6 +46,7 @@ let manyObjSamples = $state(1)
 let manyRandomize = $state(true)
 let manyIndirect = $state(true)
 let manyCutaway = $state(false)
+let manyCutawayFeather = $state(0.15)
 let manyRadius = $state(0.012)
 let manyRadiusVar = $state(0)
 let sphereHex = $state<string | null>('#f1921f')
@@ -72,6 +73,7 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
             sphereColor={sphereHex ?? '#ec7813'}
             bgColor={bgHex ?? '#33373d'}
             cutaway={manyCutaway}
+            cutawayFeather={manyCutawayFeather}
             sphereRadius={manyRadius}
             radiusVariation={manyRadiusVar}
           />
@@ -85,6 +87,7 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
             sphereColor={sphereHex ?? '#ec7813'}
             bgColor={bgHex ?? '#33373d'}
             cutaway={manyCutaway}
+            cutawayFeather={manyCutawayFeather}
             sphereRadius={manyRadius}
             radiusVariation={manyRadiusVar}
           />
@@ -197,6 +200,18 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
         <input type="checkbox" bind:checked={manyCutaway} />
         <span>Cutaway (top-front quarter)</span>
       </label>
+      {#if manyCutaway}
+        <label class="ctl">
+          <span>Cutaway feather: {manyCutawayFeather.toFixed(2)}</span>
+          <input
+            type="range"
+            min="0"
+            max="0.5"
+            step="0.01"
+            bind:value={manyCutawayFeather}
+          />
+        </label>
+      {/if}
       <div class="ctl colors">
         <ColorPicker
           bind:hex={sphereHex}

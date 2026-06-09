@@ -24,6 +24,7 @@ let {
   sphereColor = '#ec7813',
   bgColor = '#33373d',
   cutaway = false,
+  cutawayFeather = 0,
   sphereRadius = 0.012,
   radiusVariation = 0,
 }: {
@@ -36,6 +37,7 @@ let {
   sphereColor?: string
   bgColor?: string
   cutaway?: boolean
+  cutawayFeather?: number
   sphereRadius?: number
   radiusVariation?: number
 } = $props()
@@ -124,7 +126,7 @@ onMount(() => {
     const renderer = ctx.renderer
     if (!renderer) return
 
-    grid.update(cutaway, sphereRadius, radiusVariation)
+    grid.update(cutaway, sphereRadius, radiusVariation, cutawayFeather)
 
     // size the accumulation targets to the (scaled) drawing buffer
     renderer.getDrawingBufferSize(drawBuf)

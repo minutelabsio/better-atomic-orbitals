@@ -154,11 +154,15 @@ export class SphereGrid {
    * @param sphereRadius base radius of each sphere.
    * @param radiusVariation fraction (0..1); each sphere's radius is scaled by
    *   1 + radiusVariation * rand, where rand is its stable uniform [-1, 1].
+   * @param cutawayFeather world-space band width over which spheres shrink to
+   *   zero as they approach the cut quadrant (so they fade by size instead of
+   *   popping in/out). 0 = hard edge (original behaviour).
    */
   update(
     cutaway = false,
     sphereRadius = this.sphereRadius,
     radiusVariation = 0,
+    cutawayFeather = 0,
   ): void {
     const { count, gridRes, cellSize, boundMin, indexCapacity } = this
     const { theta, radii, yPos, speed } = this
@@ -181,7 +185,18 @@ export class SphereGrid {
       const y = yPos[i]!
       const z = r * Math.sin(th)
 
-      const rr = sphereRadius * (1 + radiusVariation * radiusRand[i]!)
+      let rr = sphereRadius * (1 + radiusVariation * radiusRand[i]!)
+      // cutaway feather: scale radius by a smoothstep of the distance to the cut
+      // quadrant (y>0 && z>0), so a sphere shrinks to nothing as it enters the
+      // cut and grows back as it leaves, instead of popping. distToCut is 0
+      // inside the quadrant and length(max(-y,0), max(-z,0)) outside it.
+      if (cutaway && cutawayFeather > 0) {
+        const oy = y < 0 ? -y : 0
+        const oz = z < 0 ? -z : 0
+        const distToCut = Math.sqrt(oy * oy + oz * oz)
+        const t = distToCut >= cutawayFeather ? 1 : distToCut / cutawayFeather
+        rr *= t * t * (3 - 2 * t)
+      }
       const o = i * 4
       spherePosData[o] = x
       spherePosData[o + 1] = y
