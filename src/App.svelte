@@ -6,21 +6,14 @@ import ManySpheresObjGI from './lib/scenes/manySpheres/ManySpheresObjGI.svelte'
 import RaySphereScene from './lib/scenes/raySphere/RaySphereScene.svelte'
 import TinySpheres from './lib/scenes/tinySpheres/TinySpheres.svelte'
 import Three from './lib/Three.svelte'
+import { LUTS } from './luts.js'
+
+const luts = LUTS
 
 const scenes = [
   { id: 'manySpheres', label: 'Many Spheres (RT)', component: ManySpheres },
   { id: 'tinySpheres', label: 'Tiny Spheres', component: TinySpheres },
   { id: 'raySphere', label: 'Ray Sphere', component: RaySphereScene },
-]
-
-const luts = [
-  { label: 'Bourbon 64', path: '/luts/Bourbon 64.CUBE' },
-  { label: 'Faded 47', path: '/luts/Faded 47.CUBE' },
-  { label: 'Remy 24', path: '/luts/Remy 24.CUBE' },
-  { label: 'Clayton 33', path: '/luts/Clayton 33.CUBE' },
-  { label: 'Chemical 168', path: '/luts/Chemical 168.CUBE' },
-  { label: 'Cubicle 99', path: '/luts/Cubicle 99.CUBE' },
-  { label: 'Presetpro Cinematic', path: '/luts/Presetpro-Cinematic.cube' },
 ]
 
 const giStrategies = [
