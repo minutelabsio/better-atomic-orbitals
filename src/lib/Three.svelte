@@ -61,7 +61,7 @@ onMount(() => {
   // Reactively load/swap the LUT whenever lutPath changes
   const stopEffects = $effect.root(() => {
     $effect(() => {
-      const path = lutPath
+      const path = new URL(lutPath, import.meta.url).href
       loader
         .loadAsync(path)
         .then((result: { texture3D: THREE.Data3DTexture }) => {
