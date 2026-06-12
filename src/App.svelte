@@ -4,6 +4,8 @@ import { lightingPresets } from './lib/scenes/lightingPresets.js'
 import ManySpheres from './lib/scenes/manySpheres/ManySpheres.svelte'
 import ManySpheresObjGI from './lib/scenes/manySpheres/ManySpheresObjGI.svelte'
 import OrbitalField from './lib/scenes/orbitalField/OrbitalField.svelte'
+import OrbitalScatter from './lib/scenes/orbitalScatter/OrbitalScatter.svelte'
+import OrbitalGlass from './lib/scenes/orbitalGlass/OrbitalGlass.svelte'
 import RaySphereScene from './lib/scenes/raySphere/RaySphereScene.svelte'
 import TinySpheres from './lib/scenes/tinySpheres/TinySpheres.svelte'
 import Three from './lib/Three.svelte'
@@ -17,6 +19,16 @@ const scenes = [
     id: 'orbitalField',
     label: 'Orbital Density (Field)',
     component: OrbitalField,
+  },
+  {
+    id: 'orbitalScatter',
+    label: 'Orbital Scatter (Volumetric)',
+    component: OrbitalScatter,
+  },
+  {
+    id: 'orbitalGlass',
+    label: 'Orbital Glass (Refraction)',
+    component: OrbitalGlass,
   },
   { id: 'tinySpheres', label: 'Tiny Spheres', component: TinySpheres },
   { id: 'raySphere', label: 'Ray Sphere', component: RaySphereScene },
@@ -72,6 +84,22 @@ let fieldCutaway = $state(false)
 let fieldColorHex = $state<string | null>('#1b1b2f')
 let fieldBgHex = $state<string | null>('#ffffff')
 // other nice colors: #80354d, #8bb10d
+// Orbital Scatter (volumetric, Henyey-Greenstein) scene controls
+let scatterGain = $state(3.0)
+let scatterSteps = $state(48)
+let scatterCutaway = $state(false)
+let scatterColorHex = $state<string | null>('#e9ecff')
+let scatterBgHex = $state<string | null>('#86b0e6')
+let scatterAnisotropy = $state(0.12)
+let scatterLightIntensity = $state(1.8)
+// Orbital Glass (isosurface refraction) scene controls
+let glassSteps = $state(80)
+let glassIso = $state(0.01)
+let glassIOR = $state(1.5)
+let glassAbsorb = $state(1.2)
+let glassDensityGraded = $state(false)
+let glassCutaway = $state(false)
+let glassTintHex = $state<string | null>('#bfe9ff')
 let sphereHex = $state<string | null>('#f1921f')
 let bgHex = $state<string | null>('#ffffff')
 
@@ -135,6 +163,32 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
         cutaway={fieldCutaway}
         orbitalColor={fieldColorHex ?? '#1b1b2f'}
         bgColor={fieldBgHex ?? '#ffffff'}
+      />
+    {:else if selected.id === 'orbitalScatter'}
+      <OrbitalScatter
+        n={orbital.n}
+        l={orbital.l}
+        m={orbital.m}
+        gain={scatterGain}
+        steps={scatterSteps}
+        cutaway={scatterCutaway}
+        orbitalColor={scatterColorHex ?? '#e9ecff'}
+        bgColor={scatterBgHex ?? '#86b0e6'}
+        anisotropy={scatterAnisotropy}
+        lightIntensity={scatterLightIntensity}
+      />
+    {:else if selected.id === 'orbitalGlass'}
+      <OrbitalGlass
+        n={orbital.n}
+        l={orbital.l}
+        m={orbital.m}
+        steps={glassSteps}
+        iso={glassIso}
+        ior={glassIOR}
+        absorb={glassAbsorb}
+        densityGraded={glassDensityGraded}
+        glassTint={glassTintHex ?? '#bfe9ff'}
+        cutaway={glassCutaway}
       />
     {:else}
       <RaySphereScene />
@@ -295,7 +349,7 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
         <input
           type="range"
           min="0.1"
-          max="6"
+          max="15"
           step="0.05"
           bind:value={fieldGain}
         />
@@ -324,6 +378,132 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
         <ColorPicker
           bind:hex={fieldBgHex}
           label="Background"
+          isAlpha={false}
+          position="responsive"
+        />
+      </div>
+    {:else if selected.id === 'orbitalScatter'}
+      <select bind:value={orbitalIdx}>
+        {#each orbitals as o, i}
+          <option value={i}>{o.label}</option>
+        {/each}
+      </select>
+      <label class="ctl">
+        <span>Density gain: {scatterGain.toFixed(2)}</span>
+        <input
+          type="range"
+          min="0.1"
+          max="15"
+          step="0.05"
+          bind:value={scatterGain}
+        />
+      </label>
+      <label class="ctl">
+        <span>Quality: {scatterSteps} steps</span>
+        <input
+          type="range"
+          min="48"
+          max="512"
+          step="8"
+          bind:value={scatterSteps}
+        />
+      </label>
+      <label class="ctl">
+        <span>Scattering (HG g): {scatterAnisotropy.toFixed(2)}</span>
+        <input
+          type="range"
+          min="-0.9"
+          max="0.9"
+          step="0.05"
+          bind:value={scatterAnisotropy}
+        />
+      </label>
+      <label class="ctl">
+        <span>Light intensity: {scatterLightIntensity.toFixed(2)}</span>
+        <input
+          type="range"
+          min="0"
+          max="5"
+          step="0.05"
+          bind:value={scatterLightIntensity}
+        />
+      </label>
+      <label class="ctl checkbox">
+        <input type="checkbox" bind:checked={scatterCutaway} />
+        <span>Cutaway (slice +Z half)</span>
+      </label>
+      <div class="ctl colors">
+        <ColorPicker
+          bind:hex={scatterColorHex}
+          label="Cloud color"
+          isAlpha={false}
+          position="responsive"
+        />
+        <ColorPicker
+          bind:hex={scatterBgHex}
+          label="Sky / background"
+          isAlpha={false}
+          position="responsive"
+        />
+      </div>
+    {:else if selected.id === 'orbitalGlass'}
+      <select bind:value={orbitalIdx}>
+        {#each orbitals as o, i}
+          <option value={i}>{o.label}</option>
+        {/each}
+      </select>
+      <label class="ctl">
+        <span>Iso threshold: {glassIso.toFixed(4)}</span>
+        <input
+          type="range"
+          min="0.0005"
+          max="0.05"
+          step="0.0005"
+          bind:value={glassIso}
+        />
+      </label>
+      <label class="ctl">
+        <span>Index of refraction: {glassIOR.toFixed(2)}</span>
+        <input
+          type="range"
+          min="1"
+          max="2.4"
+          step="0.01"
+          bind:value={glassIOR}
+        />
+      </label>
+      <label class="ctl">
+        <span>Tint absorption: {glassAbsorb.toFixed(2)}</span>
+        <input
+          type="range"
+          min="0"
+          max="5"
+          step="0.05"
+          bind:value={glassAbsorb}
+        />
+      </label>
+      <label class="ctl">
+        <span>Quality: {glassSteps} steps</span>
+        <input
+          type="range"
+          min="64"
+          max="512"
+          step="8"
+          bind:value={glassSteps}
+        />
+      </label>
+      <label class="ctl checkbox">
+        <input type="checkbox" bind:checked={glassDensityGraded} />
+        <span>Density-graded tint (denser = more glass)</span>
+      </label>
+      <label class="ctl checkbox">
+        <input type="checkbox" bind:checked={glassCutaway} />
+        <span>Cutaway (slice +Z half)</span>
+      </label>
+      <div class="ctl colors">
+        <ColorPicker
+          bind:hex={glassTintHex}
+          label="Glass tint"
           isAlpha={false}
           position="responsive"
         />
