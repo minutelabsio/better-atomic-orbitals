@@ -217,9 +217,13 @@ void main() {
   float rOuterAtomic = float(uN * uN) + turning + tail;
   float marchRadius = min(rOuterAtomic / atomicScale, R_VIEW);
 
-  float dsWorld = (2.0 * marchRadius) / float(uSteps);
-  float dsAtomic = dsWorld * atomicScale;
-  float surfaceOffset = dsWorld * 0.5; // nudge past a surface so we don't re-detect it
+  // The normal epsilon and the post-surface nudge must NOT scale with the step count.
+  // Refraction magnifies any normal error, and a step-sized nudge skips a step-sized
+  // slab of glass at every interface -- so tying these to uSteps gives heavy ring
+  // banding at low quality. Tie them to the object size instead: precision stays put
+  // while only the (bisection-refined) surface search gets coarser as steps drop.
+  float normalEps = marchRadius * atomicScale * 0.0025;
+  float surfaceOffset = marchRadius * 0.0025;
 
   // Fresnel reflectance at normal incidence for an air/glass boundary.
   float f0 = (1.0 - uIOR) / (1.0 + uIOR);
@@ -253,7 +257,7 @@ void main() {
     }
 
     // gradient normal, oriented to face the incoming ray
-    vec3 n = fieldNormal(pAtomic, scale, dsAtomic);
+    vec3 n = fieldNormal(pAtomic, scale, normalEps);
     if (dot(n, crd) > 0.0) n = -n;
 
     float cosI = clamp(dot(-crd, n), 0.0, 1.0);
