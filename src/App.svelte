@@ -3,6 +3,7 @@ import ColorPicker from 'svelte-awesome-color-picker'
 import { lightingPresets } from './lib/scenes/lightingPresets.js'
 import ManySpheres from './lib/scenes/manySpheres/ManySpheres.svelte'
 import ManySpheresObjGI from './lib/scenes/manySpheres/ManySpheresObjGI.svelte'
+import OrbitalField from './lib/scenes/orbitalField/OrbitalField.svelte'
 import RaySphereScene from './lib/scenes/raySphere/RaySphereScene.svelte'
 import TinySpheres from './lib/scenes/tinySpheres/TinySpheres.svelte'
 import Three from './lib/Three.svelte'
@@ -12,6 +13,11 @@ const luts = LUTS
 
 const scenes = [
   { id: 'manySpheres', label: 'Many Spheres (RT)', component: ManySpheres },
+  {
+    id: 'orbitalField',
+    label: 'Orbital Density (Field)',
+    component: OrbitalField,
+  },
   { id: 'tinySpheres', label: 'Tiny Spheres', component: TinySpheres },
   { id: 'raySphere', label: 'Ray Sphere', component: RaySphereScene },
 ]
@@ -59,6 +65,12 @@ let manyCutaway = $state(false)
 let manyCutawayFeather = $state(0.05)
 let manyRadius = $state(0.012)
 let manyRadiusVar = $state(0)
+// Orbital Density (Field) scene controls
+let fieldGain = $state(3.0)
+let fieldSteps = $state(192)
+let fieldCutaway = $state(false)
+let fieldColorHex = $state<string | null>('#1b1b2f')
+let fieldBgHex = $state<string | null>('#ffffff')
 // other nice colors: #80354d, #8bb10d
 let sphereHex = $state<string | null>('#f1921f')
 let bgHex = $state<string | null>('#ffffff')
@@ -113,6 +125,17 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           />
         {/if}
       {/key}
+    {:else if selected.id === 'orbitalField'}
+      <OrbitalField
+        n={orbital.n}
+        l={orbital.l}
+        m={orbital.m}
+        gain={fieldGain}
+        steps={fieldSteps}
+        cutaway={fieldCutaway}
+        orbitalColor={fieldColorHex ?? '#1b1b2f'}
+        bgColor={fieldBgHex ?? '#ffffff'}
+      />
     {:else}
       <RaySphereScene />
     {/if}
@@ -256,6 +279,50 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
         />
         <ColorPicker
           bind:hex={bgHex}
+          label="Background"
+          isAlpha={false}
+          position="responsive"
+        />
+      </div>
+    {:else if selected.id === 'orbitalField'}
+      <select bind:value={orbitalIdx}>
+        {#each orbitals as o, i}
+          <option value={i}>{o.label}</option>
+        {/each}
+      </select>
+      <label class="ctl">
+        <span>Density gain: {fieldGain.toFixed(2)}</span>
+        <input
+          type="range"
+          min="0.1"
+          max="6"
+          step="0.05"
+          bind:value={fieldGain}
+        />
+      </label>
+      <label class="ctl">
+        <span>Quality: {fieldSteps} steps</span>
+        <input
+          type="range"
+          min="48"
+          max="512"
+          step="8"
+          bind:value={fieldSteps}
+        />
+      </label>
+      <label class="ctl checkbox">
+        <input type="checkbox" bind:checked={fieldCutaway} />
+        <span>Cutaway (slice +Z half)</span>
+      </label>
+      <div class="ctl colors">
+        <ColorPicker
+          bind:hex={fieldColorHex}
+          label="Orbital color"
+          isAlpha={false}
+          position="responsive"
+        />
+        <ColorPicker
+          bind:hex={fieldBgHex}
           label="Background"
           isAlpha={false}
           position="responsive"
