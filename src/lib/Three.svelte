@@ -45,9 +45,6 @@ let canvas: HTMLCanvasElement
 onMount(() => {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
   ctx.renderer = renderer
-  renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap
-  renderer.localClippingEnabled = true
   renderer.outputColorSpace = THREE.SRGBColorSpace
 
   const composer = new EffectComposer(renderer, {

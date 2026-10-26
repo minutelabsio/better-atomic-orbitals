@@ -58,10 +58,9 @@ function makeFloatTexture(
 }
 
 /**
- * Maintains a population of slowly-orbiting spheres (orbital scheme from
- * TinySpheres.svelte) and rebuilds a single-level uniform grid every frame via
- * counting sort, packing the result into three float DataTextures for a
- * fragment-shader ray tracer to traverse:
+ * Maintains a population of slowly-orbiting spheres and rebuilds a
+ * single-level uniform grid every frame via counting sort, packing the result
+ * into three float DataTextures for a fragment-shader ray tracer to traverse:
  *   - spherePos  RGBA32F : xyz = centre, w = radius      (one texel per sphere)
  *   - cellRange  RGBA32F : r = offset into index list, g = count  (one per cell)
  *   - indexList  R32F    : sphere indices grouped by cell
