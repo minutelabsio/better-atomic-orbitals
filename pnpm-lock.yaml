@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      glsl-ray-sphere:
-        specifier: ^0.0.1
-        version: 0.0.1
       glslify:
         specifier: ^7.1.1
         version: 7.1.1
@@ -690,9 +687,6 @@ packages:
 
   glsl-inject-defines@1.0.3:
     resolution: {integrity: sha512-W49jIhuDtF6w+7wCMcClk27a2hq8znvHtlGnrYkSWEr8tHe9eA2dcnohlcAmxLYBSpSSdzOkRdyPTrx9fw49+A==}
-
-  glsl-ray-sphere@0.0.1:
-    resolution: {integrity: sha512-jLQOI3qsGJg8iuc9Ujlgx49Nu4sfl0WoIX1lG13YJnmQKvDOLtcKXUQ1D5xYtR6Fhl7wbJhwf5DsbwEVkiJe8g==}
 
   glsl-resolve@0.0.1:
     resolution: {integrity: sha512-xxFNsfnhZTK9NBhzJjSBGX6IOqYpvBHxxmo+4vapiljyGNCY0Bekzn0firQkQrazK59c1hYxMDxYS8MDlhw4gA==}
@@ -1577,8 +1571,6 @@ snapshots:
       glsl-token-inject-block: 1.1.0
       glsl-token-string: 1.0.1
       glsl-tokenizer: 2.1.5
-
-  glsl-ray-sphere@0.0.1: {}
 
   glsl-resolve@0.0.1:
     dependencies:

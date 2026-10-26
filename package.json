@@ -24,7 +24,6 @@
     "vitest": "^3.2.7"
   },
   "dependencies": {
-    "glsl-ray-sphere": "^0.0.1",
     "glslify": "^7.1.1",
     "postprocessing": "^6.39.1",
     "svelte-awesome-color-picker": "^4.1.3",
