@@ -36,7 +36,9 @@ onMount(() => {
     camera.updateMatrixWorld()
     uniforms.uCameraPos.value.copy(camera.position)
     // invViewProj = cameraMatrixWorld * projectionMatrixInverse
-    invViewProj.copy(camera.projectionMatrixInverse).premultiply(camera.matrixWorld)
+    invViewProj
+      .copy(camera.projectionMatrixInverse)
+      .premultiply(camera.matrixWorld)
     uniforms.uInvViewProj.value.copy(invViewProj)
   })
 

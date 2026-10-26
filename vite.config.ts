@@ -1,6 +1,6 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte'
-import glslify from 'vite-plugin-glslify'
 import { defineConfig } from 'vite'
+import glslify from 'vite-plugin-glslify'
 import pkg from './package.json'
 
 export default defineConfig({

@@ -102,7 +102,9 @@ onMount(() => {
 
     uniforms.uAnisotropy.value = anisotropy
     uniforms.uAmbient.value = ambient
-    uniforms.uLightDir.value.set(lightDir[0], lightDir[1], lightDir[2]).normalize()
+    uniforms.uLightDir.value
+      .set(lightDir[0], lightDir[1], lightDir[2])
+      .normalize()
     lightCol.set(lightColor)
     uniforms.uLightColor.value
       .set(lightCol.r, lightCol.g, lightCol.b)

@@ -16,8 +16,8 @@ export function expectSeriesClose(
 ): void {
   const scale = Math.max(1, ...expected.map(Math.abs))
   for (let i = 0; i < expected.length; i++) {
-    const a = actual[i] as number
-    const e = expected[i] as number
+    const a = actual[i]!
+    const e = expected[i]!
     expect(
       Math.abs(a - e),
       `index ${i}: got ${a}, want ${e}`,

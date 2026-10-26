@@ -1,8 +1,6 @@
 <script lang="ts">
 import { getContext, onMount } from 'svelte'
 import * as THREE from 'three'
-import fragmentShader from './orbitalGlass.frag.glsl'
-import vertexShader from './orbitalGlass.vert.glsl'
 // Park2 cubemap (Emil Persson / Humus, CC-BY 3.0) — a standard three.js skybox.
 import negx from '../../../assets/skybox/park2/negx.jpg?url'
 import negy from '../../../assets/skybox/park2/negy.jpg?url'
@@ -10,6 +8,8 @@ import negz from '../../../assets/skybox/park2/negz.jpg?url'
 import posx from '../../../assets/skybox/park2/posx.jpg?url'
 import posy from '../../../assets/skybox/park2/posy.jpg?url'
 import posz from '../../../assets/skybox/park2/posz.jpg?url'
+import fragmentShader from './orbitalGlass.frag.glsl'
+import vertexShader from './orbitalGlass.vert.glsl'
 
 const { scene, camera, onFrame } = getContext<{
   scene: THREE.Scene
