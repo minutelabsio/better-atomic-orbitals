@@ -16,7 +16,7 @@ Run/verify: `pnpm dev`. No GPU in the sandbox — screenshot via headless Chromi
 
 Keep functionality in **small, single-purpose modules organized by purpose** — avoid large sprawling source files. Prefer extracting a pure, importable helper over inlining, and build shared utilities incrementally as they're needed (not one giant module up front). Examples in the tree:
 - GLSL is modularized into `src/lib/scenes/manySpheres/shared/*.glsl` (rng, intersect, grid traversal, lighting, …), pulled in via glslify `#pragma glslify: require`. Gotchas when editing these are documented in agent memory (`glslify-gotchas`).
-- Orbital physics lives in `src/lib/orbital/` as one concern per file: `velocity.ts`, `coords.ts`, `laguerre.ts`, `legendre.ts`, `inverseCdfSampler.ts`, `radialDensity.ts`, `angularDensity.ts`, `sampleOrbital.ts`.
+- Orbital physics lives in `src/lib/orbital/` as one concern per file: `velocity.ts`, `coords.ts`, `laguerre.ts`, `legendre.ts`, `inverseCdfSampler.ts`, `radialDensity.ts`, `angularDensity.ts`, `particleUniforms.ts` (per-particle random numbers, fixed for life), `orbitalShape.ts` (uniforms → (r, polar) for one orbital), `shapeMix.ts` (lazy blends of shapes), `orbitalTransition.ts` (intween `smoothen` morphs between orbitals; tweens shape + m, so ω = m/ρ² follows).
 
 Reason in the most natural coordinate system for each concern and convert only at the boundaries: **spherical** for sampling the orbital shape → **cylindrical** `(ρ, φ, y)` for the motion (it's a rigid azimuthal spin; this is what `SphereGrid` stores/animates) → **cartesian** for the shader (per-frame hot loop). See `planning/hydrogen-orbitals.md`.
 

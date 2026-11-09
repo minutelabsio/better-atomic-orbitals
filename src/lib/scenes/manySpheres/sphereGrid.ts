@@ -1,16 +1,16 @@
 import * as THREE from 'three'
-import { sampleOrbital } from '../../orbital/sampleOrbital.js'
+import type { OrbitalState } from '../../orbital/orbitalTransition.js'
+import {
+  drawParticleUniforms,
+  type ParticleUniforms,
+} from '../../orbital/particleUniforms.js'
+import { evaluateShape, ShapeScratch } from '../../orbital/shapeMix.js'
+import { probabilityCurrentOmega } from '../../orbital/velocity.js'
 
 export interface SphereGridOptions {
   count: number
   clusterRadius?: number
   sphereRadius?: number
-  /** principal quantum number n (>= 1) */
-  n?: number
-  /** azimuthal quantum number l (0 <= l < n) */
-  l?: number
-  /** magnetic quantum number m (|m| <= l): sets the swirl, omega ∝ m/rho² */
-  m?: number
   /** softening added to rho² so the swirl stays finite near the spin axis */
   omegaSoftening?: number
   /** number of grid cells per axis */
@@ -89,15 +89,18 @@ export class SphereGrid {
   /** stable per-sphere uniform random in [-1, 1] for size variation */
   private readonly radiusRand: Float32Array
 
-  /** seeding params kept for in-place reseed */
-  private readonly clusterRadius: number
+  /**
+   * Per-particle random numbers, fixed for the grid's lifetime. Every orbital
+   * shape is computed from these, so a particle has a counterpart in each.
+   */
+  readonly uniforms: ParticleUniforms
+
   private readonly omegaSoftening: number
-  /** current orbital (n, l, m) so reseed can no-op when unchanged */
-  private curN = 0
-  private curL = -1
-  private curM = 0
-  /** ⟨r⟩ of the current orbital in world units */
-  meanRadius = 0
+  /** latest orbital state, applied to radii/yPos/speed on the next update() */
+  private pendingState: OrbitalState | null = null
+  private readonly shapeR: Float32Array
+  private readonly shapePolar: Float32Array
+  private readonly shapeScratch: ShapeScratch
 
   private readonly spherePosData: Float32Array
   private readonly cellRangeData: Float32Array
@@ -109,9 +112,6 @@ export class SphereGrid {
       count,
       clusterRadius = 1.4,
       sphereRadius = 0.012,
-      n = 1,
-      l = 0,
-      m = 0,
       omegaSoftening = 0.02,
       gridRes = 32,
       // generous fixed margin so live radius changes stay within the domain
@@ -121,7 +121,6 @@ export class SphereGrid {
 
     this.count = count
     this.sphereRadius = sphereRadius
-    this.clusterRadius = clusterRadius
     this.omegaSoftening = omegaSoftening
     this.gridRes = gridRes
     this.numCells = gridRes * gridRes * gridRes
@@ -134,6 +133,13 @@ export class SphereGrid {
     this.yPos = new Float32Array(count)
     this.speed = new Float32Array(count)
     this.radiusRand = new Float32Array(count)
+    this.shapeR = new Float32Array(count)
+    this.shapePolar = new Float32Array(count)
+    this.shapeScratch = new ShapeScratch(count)
+
+    // azimuth starts at the particle's own uniform; it is never re-drawn
+    this.uniforms = drawParticleUniforms(count)
+    this.theta.set(this.uniforms.phi)
 
     // stable per-sphere size jitter (independent of the orbital, seeded once)
     for (let i = 0; i < count; i++) {
@@ -159,34 +165,37 @@ export class SphereGrid {
 
     this.counts = new Int32Array(this.numCells)
 
-    this.seed(n, l, m) // sample the initial orbital
-    this.update() // initial build so first frame has data
-  }
-
-  /** Sample orbital (n, l, m) into the per-sphere motion arrays. */
-  private seed(n: number, l: number, m: number): void {
-    const s = sampleOrbital(n, l, m, this.count, {
-      clusterRadius: this.clusterRadius,
-      omegaSoftening: this.omegaSoftening,
-    })
-    this.radii.set(s.rho)
-    this.yPos.set(s.y)
-    this.theta.set(s.phi)
-    this.speed.set(s.omega)
-    this.meanRadius = s.meanRadius
-    this.curN = n
-    this.curL = l
-    this.curM = m
+    // positions arrive via setOrbitalState(); the first update() builds the grid
   }
 
   /**
-   * Re-sample a (possibly) different orbital in place — no texture reallocation,
-   * so the scene can switch orbitals without a remount. No-ops if (n, l, m) is
-   * unchanged. The next update() rebuilds the grid from the new positions.
+   * Set where the particles should be (shape) and how they swirl (m). Cheap: it
+   * only records the state; the arrays are recomputed once, in the next update(),
+   * however many states arrive between frames.
    */
-  reseed(n: number, l: number, m: number): void {
-    if (n === this.curN && l === this.curL && m === this.curM) return
-    this.seed(n, l, m)
+  setOrbitalState(state: OrbitalState): void {
+    this.pendingState = state
+  }
+
+  /** Spherical shape -> cylindrical motion state (ρ, y) and ω = m/ρ². */
+  private applyOrbitalState(state: OrbitalState): void {
+    // explicit member reads (biome's unused-private check misses destructure reads)
+    const shapeR = this.shapeR
+    const shapePolar = this.shapePolar
+    const radii = this.radii
+    const yPos = this.yPos
+    const speed = this.speed
+    evaluateShape(state.shape, shapeR, shapePolar, this.shapeScratch)
+    const m = state.m
+    const soft = this.omegaSoftening
+    for (let i = 0; i < this.count; i++) {
+      const r = shapeR[i]!
+      const p = shapePolar[i]!
+      const rho = r * Math.sin(p)
+      radii[i] = rho
+      yPos[i] = r * Math.cos(p)
+      speed[i] = probabilityCurrentOmega(rho, m, soft)
+    }
   }
 
   /**
@@ -212,6 +221,11 @@ export class SphereGrid {
     const indexListData = this.indexListData
     const counts = this.counts
     const last = gridRes - 1
+
+    if (this.pendingState) {
+      this.applyOrbitalState(this.pendingState)
+      this.pendingState = null
+    }
 
     counts.fill(0)
 

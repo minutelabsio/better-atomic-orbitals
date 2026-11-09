@@ -39,6 +39,17 @@ let orbitalIdx = $state(
   orbitals.findIndex((o) => o.n === 2 && o.l === 1 && o.m === 1),
 )
 let manySpeed = $state(0.001)
+let morphDuration = $state(1500)
+let morphEasing = $state('cubicInOut')
+const morphEasings = [
+  'cubicInOut',
+  'quadInOut',
+  'sinInOut',
+  'expInOut',
+  'cubicOut',
+  'backInOut',
+  'linear',
+]
 let manyBlend = $state(0.28)
 let manyObjBlend = $state(0.01)
 let manyObjSamples = $state(1)
@@ -76,6 +87,8 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           l={orbital.l}
           m={orbital.m}
           speed={manySpeed}
+          {morphDuration}
+          {morphEasing}
         />
       {:else}
         <ManySpheres
@@ -94,6 +107,8 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
           l={orbital.l}
           m={orbital.m}
           speed={manySpeed}
+          {morphDuration}
+          {morphEasing}
         />
       {/if}
     {/key}
@@ -124,6 +139,21 @@ const manyResScale = $derived(manyResScales[manyResIdx]!.value)
     <select bind:value={orbitalIdx}>
       {#each orbitals as o, i}
         <option value={i}>{o.label}</option>
+      {/each}
+    </select>
+    <label class="ctl">
+      <span>Morph: {(morphDuration / 1000).toFixed(1)}s</span>
+      <input
+        type="range"
+        min="200"
+        max="5000"
+        step="100"
+        bind:value={morphDuration}
+      />
+    </label>
+    <select bind:value={morphEasing}>
+      {#each morphEasings as e}
+        <option value={e}>{e}</option>
       {/each}
     </select>
     <label class="ctl">

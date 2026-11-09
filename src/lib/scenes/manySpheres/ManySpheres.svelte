@@ -1,6 +1,8 @@
 <script lang="ts">
+import type { Easing } from 'intween'
 import { getContext, onMount } from 'svelte'
 import * as THREE from 'three'
+import { OrbitalTransition } from '../../orbital/orbitalTransition.js'
 import fragmentShader from './manySpheres.frag.glsl'
 import vertexShader from './manySpheres.vert.glsl'
 import displayShader from './manySpheresDisplay.frag.glsl'
@@ -31,6 +33,8 @@ let {
   l = 0,
   m = 0,
   speed = 0.001,
+  morphDuration = 1500,
+  morphEasing = 'cubicInOut',
 }: {
   count?: number
   gridRes?: number
@@ -48,14 +52,27 @@ let {
   l?: number
   m?: number
   speed?: number
+  /** orbital-to-orbital morph duration, ms */
+  morphDuration?: number
+  morphEasing?: Easing
 } = $props()
 
-// exposed as state so the reseed effect re-runs once the grid exists (onMount)
-let gridState = $state<SphereGrid>()
+// exposed as state so these effects re-run once it exists (onMount)
+let transition = $state<OrbitalTransition>()
 
-// switch orbitals in place (no remount). reseed() no-ops when (n,l,m) is unchanged.
+// switch orbitals by morphing in place (no remount); goTo no-ops when unchanged
 $effect(() => {
-  if (gridState) gridState.reseed(n, l, m)
+  transition?.goTo(n, l, m)
+})
+
+let configured = false
+$effect(() => {
+  const d = morphDuration
+  const e = morphEasing
+  if (!transition) return
+  // the constructor already used the initial values
+  if (configured) transition.configure(d, e)
+  configured = true
 })
 
 // reusable scratch colors; hex strings (sRGB) -> linear working values
@@ -73,8 +90,14 @@ function makeTarget(w: number, h: number): THREE.WebGLRenderTarget {
 }
 
 onMount(() => {
-  const grid = new SphereGrid({ count, gridRes, n, l, m })
-  gridState = grid
+  const grid = new SphereGrid({ count, gridRes })
+  const morph = new OrbitalTransition(
+    grid.uniforms,
+    { n, l, m },
+    (state) => grid.setOrbitalState(state),
+    { duration: morphDuration, easing: morphEasing },
+  )
+  transition = morph
 
   const uniforms = {
     uCameraPos: { value: new THREE.Vector3() },
@@ -212,6 +235,7 @@ onMount(() => {
     displayMaterial.dispose()
     read.dispose()
     write.dispose()
+    morph.dispose()
     grid.dispose()
   }
 })
