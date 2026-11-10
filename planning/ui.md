@@ -1,9 +1,28 @@
 # PLAN: User interface — orbital picker, meaning readout, transitions
 
-**Status:** design — nothing implemented. Decisions below came out of a design
-discussion (2026-11-09); open questions are listed at the end.
+**Status:** design — nothing implemented. The decisions below came out of a design
+discussion (2026-11-09), but they are **working hypotheses, not a committed UI
+design**: they get tested in scrappy prototypes first (see *Prototype before
+committing*). Open questions are listed at the end.
 **Related:** `planning/hydrogen-orbitals.md` (physics + sampling), `src/App.svelte`
 (current prototype controls).
+
+## Prototype before committing
+
+The UI design is **undecided** until it has been tried in hand. Before anything is
+wired into the real app:
+
+- Build **isolated mockup pages** — separate Vite entry points (e.g.
+  `prototypes/<name>/index.html`), not routes inside `App.svelte` — that exercise one
+  UI idea each: the bottom sheet, swiping between n-triangles, the half triangle +
+  swirl toggle, the readout, thumbnail video cropping.
+- Mockups use **fake data and placeholder visuals** (static images, coloured boxes, a
+  stub `orbital` store). No renderer, no `orbitalTransition` pipeline, no URL state.
+- Keep them scrappy: throwaway code, minimal styling, and it is fine to try two
+  competing versions side by side.
+- Only once a mockup feels right on a phone and on a projector do we decide the
+  design and hook it up to the scene. Decisions in this doc can be overturned by what
+  the prototypes show.
 
 ## Audience & goal
 
@@ -123,8 +142,28 @@ and shipped as assets — no live 3D in the menu.
 All rendering knobs in today's `App.svelte` — LUT, GI strategy, sphere count,
 resolution, blend, samples, radius/variation, randomize, indirect bounce, colours,
 cutaway feather — move behind a dev/debug view (e.g. `?debug` or a hidden
-shortcut). The student/teacher UI shows only the picker, the readout, and a few
+shortcut), built with Tweakpane. The student/teacher UI shows only the picker, the readout, and a few
 teaching toggles (e.g. cutaway, speed).
+
+## Possible libraries (candidates, not decided)
+
+Leaning on small libraries rather than building everything ourselves; try them in
+the prototypes before adopting any.
+
+- **[Bits UI](https://bits-ui.com)** — headless, Svelte 5-native components
+  (behaviour + accessibility, no styling, so it doesn't fight a bespoke look).
+  `ToggleGroup` for the ↺/↻ swirl toggle, `RadioGroup` for triangle cells
+  (single selection, arrow keys), `Tooltip`/`Popover` for explaining numbers.
+- **[vaul-svelte](https://github.com/huntabyte/vaul-svelte)** — bottom sheet / drawer
+  with drag, snap points and swipe-to-dismiss. Same author as Bits UI.
+- **CSS scroll-snap** (no library) for swiping between shells, with an
+  IntersectionObserver for the visible n. Fallback if it's not enough:
+  Embla Carousel.
+- **[Tweakpane](https://tweakpane.github.io/docs/)** for the dev/debug view (see
+  below) — adopted first, since the debug panel doesn't depend on the UI design.
+
+Avoid styled kits (Skeleton, Flowbite, shadcn-svelte): they impose a look, and
+shadcn-svelte needs Tailwind, which the project doesn't use.
 
 ## Open questions
 
