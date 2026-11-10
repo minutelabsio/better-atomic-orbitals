@@ -1,22 +1,29 @@
-import type { OrbitalShape } from './orbitalShape.js'
+import type { OrbitalShape, SphericalShape } from './orbitalShape.js'
 
 /**
  * A lazily-evaluated blend of two shapes: `from` at k=0, `to` at k=1.
  *
- * This is the intween interpolator's output. Rather than lerping two 50k-element
- * arrays inside the interpolator (allocating per frame), it returns this tiny
- * description and the arrays are combined once per frame by `evaluateShape`.
- * Mixes nest: when a transition is retargeted mid-flight, intween's `smoothen`
- * composes interpolations, so `from`/`to` may themselves be mixes.
+ * This is the intween interpolator's output. Lerping two 50k-element arrays
+ * inside the interpolator would allocate every frame; instead it returns this
+ * tiny description, and `createShapeEvaluator` combines the arrays once per
+ * frame. Mixes nest: retargeting mid-flight makes `smoothen` compose
+ * interpolations, so `from`/`to` may themselves be mixes.
  */
 export interface ShapeMix {
-  kind: 'mix'
-  from: ShapeExpr
-  to: ShapeExpr
-  k: number
+  readonly kind: 'mix'
+  readonly from: ShapeExpr
+  readonly to: ShapeExpr
+  readonly k: number
 }
 
 export type ShapeExpr = OrbitalShape | ShapeMix
+
+type Side = 'from' | 'to'
+
+interface ShapeBuffer {
+  r: Float32Array
+  polar: Float32Array
+}
 
 /** intween interpolator `(from, to, k) => value` for shape expressions. */
 export function mixShapes(
@@ -29,64 +36,61 @@ export function mixShapes(
   return { kind: 'mix', from, to, k }
 }
 
-/** Per-depth scratch buffers so evaluation allocates only on first use. */
-export class ShapeScratch {
-  private readonly pool: Float32Array[][] = []
-  constructor(readonly count: number) {}
-
-  pair(
-    depth: number,
-  ): [Float32Array, Float32Array, Float32Array, Float32Array] {
-    let p = this.pool[depth]
-    if (!p) {
-      p = [0, 1, 2, 3].map(() => new Float32Array(this.count))
-      this.pool[depth] = p
-    }
-    return p as [Float32Array, Float32Array, Float32Array, Float32Array]
-  }
-}
-
 /**
- * Write the per-particle (r, polar) of `expr` into `outR` / `outPolar`.
- * Interpolates in spherical coordinates, so particles travel along arcs around
- * the nucleus rather than cutting straight through it. Because both endpoints
- * share each particle's uniforms (quantiles), lerping them is the displacement
- * interpolation of each marginal: radial nodes open up as particles part.
+ * Returns `evaluateShape(expr)`, which resolves a shape expression to
+ * per-particle (r, polar). Buffers are owned by the closure and reused, so a
+ * result is only valid until the next call.
+ *
+ * Interpolating in spherical coordinates moves particles along arcs around the
+ * nucleus rather than through it, and because both endpoints come from the
+ * same quantile per particle, the lerp is a displacement interpolation of each
+ * marginal: radial nodes open up as particles part.
  */
-export function evaluateShape(
-  expr: ShapeExpr,
-  outR: Float32Array,
-  outPolar: Float32Array,
-  scratch: ShapeScratch,
-  depth = 0,
-): void {
-  if (expr.kind === 'orbital') {
-    outR.set(expr.r)
-    outPolar.set(expr.polar)
-    return
+export function createShapeEvaluator(
+  count: number,
+): (expr: ShapeExpr) => SphericalShape {
+  const bufferAt = createBufferPool(count)
+
+  // A mix's two subtrees are resolved one after the other, so they can share
+  // the deeper levels' buffers; each only needs its own buffer for its result.
+  const resolve = (
+    expr: ShapeExpr,
+    depth: number,
+    side: Side,
+  ): SphericalShape => {
+    if (expr.kind === 'orbital') return expr
+    const from = resolve(expr.from, depth + 1, 'from')
+    const to = resolve(expr.to, depth + 1, 'to')
+    return lerpShapes(from, to, expr.k, bufferAt(depth, side))
   }
-  const [aR, aP, bR, bP] = scratch.pair(depth)
-  const fromR = resolve(expr.from, aR, aP, scratch, depth)
-  const toR = resolve(expr.to, bR, bP, scratch, depth)
-  const k = expr.k
-  const n = outR.length
-  for (let i = 0; i < n; i++) {
-    const r0 = fromR[0][i]!
-    const p0 = fromR[1][i]!
-    outR[i] = r0 + (toR[0][i]! - r0) * k
-    outPolar[i] = p0 + (toR[1][i]! - p0) * k
+
+  return (expr) => resolve(expr, 0, 'from')
+}
+
+function createBufferPool(
+  count: number,
+): (depth: number, side: Side) => ShapeBuffer {
+  const levels: Record<Side, ShapeBuffer>[] = []
+  const allocate = (): ShapeBuffer => ({
+    r: new Float32Array(count),
+    polar: new Float32Array(count),
+  })
+  return (depth, side) => {
+    levels[depth] ??= { from: allocate(), to: allocate() }
+    return levels[depth][side]
   }
 }
 
-/** Plain shapes are read in place (no copy); mixes are evaluated into scratch. */
-function resolve(
-  expr: ShapeExpr,
-  r: Float32Array,
-  p: Float32Array,
-  scratch: ShapeScratch,
-  depth: number,
-): [Float32Array, Float32Array] {
-  if (expr.kind === 'orbital') return [expr.r, expr.polar]
-  evaluateShape(expr, r, p, scratch, depth + 1)
-  return [r, p]
+// hot path (every frame, every particle): indexed loop into a reused buffer
+function lerpShapes(
+  a: SphericalShape,
+  b: SphericalShape,
+  k: number,
+  out: ShapeBuffer,
+): SphericalShape {
+  for (let i = 0; i < out.r.length; i += 1) {
+    out.r[i] = a.r[i]! + (b.r[i]! - a.r[i]!) * k
+    out.polar[i] = a.polar[i]! + (b.polar[i]! - a.polar[i]!) * k
+  }
+  return out
 }

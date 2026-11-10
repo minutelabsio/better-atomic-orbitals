@@ -2,7 +2,8 @@
 import type { Easing } from 'intween'
 import { getContext, onMount } from 'svelte'
 import * as THREE from 'three'
-import { OrbitalTransition } from '../../orbital/orbitalTransition.js'
+import { orbitalStates } from '../../orbital/orbitalTransition.js'
+import { observe } from '../../rx/observe.svelte.js'
 import vertexShader from './manySpheres.vert.glsl'
 import displayShader from './manySpheresDisplay.frag.glsl'
 import objGIShader from './manySpheresObjGI.frag.glsl'
@@ -56,23 +57,12 @@ let {
   morphEasing?: Easing
 } = $props()
 
-// exposed as state so these effects re-run once it exists (onMount)
-let transition = $state<OrbitalTransition>()
-
-// switch orbitals by morphing in place (no remount); goTo no-ops when unchanged
-$effect(() => {
-  transition?.goTo(n, l, m)
-})
-
-let configured = false
-$effect(() => {
-  const d = morphDuration
-  const e = morphEasing
-  if (!transition) return
-  // the constructor already used the initial values
-  if (configured) transition.configure(d, e)
-  configured = true
-})
+// switch orbitals by morphing in place (no remount)
+const orbital$ = observe(() => ({ n, l, m }))
+const morphConfig$ = observe(() => ({
+  duration: morphDuration,
+  easing: morphEasing,
+}))
 
 // reusable scratch colors; hex strings (sRGB) -> linear working values
 const albedoColor = new THREE.Color()
@@ -102,13 +92,11 @@ function makeSphereTarget(w: number, h: number): THREE.WebGLRenderTarget {
 
 onMount(() => {
   const grid = new SphereGrid({ count, gridRes })
-  const morph = new OrbitalTransition(
-    grid.uniforms,
-    { n, l, m },
-    (state) => grid.setOrbitalState(state),
-    { duration: morphDuration, easing: morphEasing },
-  )
-  transition = morph
+  const orbitalStateSub = orbitalStates({
+    orbital$,
+    config$: morphConfig$,
+    uniforms: grid.uniforms,
+  }).subscribe((state) => grid.setOrbitalState(state))
   const sphereTexW = grid.spherePosTexW
   const sphereTexH = (grid.spherePosTex.image as { height: number }).height
 
@@ -271,7 +259,7 @@ onMount(() => {
     indirectRead.dispose()
     indirectWrite.dispose()
     frameTarget.dispose()
-    morph.dispose()
+    orbitalStateSub.unsubscribe()
     grid.dispose()
   }
 })

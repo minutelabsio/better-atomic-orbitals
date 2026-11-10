@@ -2,7 +2,8 @@
 import type { Easing } from 'intween'
 import { getContext, onMount } from 'svelte'
 import * as THREE from 'three'
-import { OrbitalTransition } from '../../orbital/orbitalTransition.js'
+import { orbitalStates } from '../../orbital/orbitalTransition.js'
+import { observe } from '../../rx/observe.svelte.js'
 import fragmentShader from './manySpheres.frag.glsl'
 import vertexShader from './manySpheres.vert.glsl'
 import displayShader from './manySpheresDisplay.frag.glsl'
@@ -57,23 +58,12 @@ let {
   morphEasing?: Easing
 } = $props()
 
-// exposed as state so these effects re-run once it exists (onMount)
-let transition = $state<OrbitalTransition>()
-
-// switch orbitals by morphing in place (no remount); goTo no-ops when unchanged
-$effect(() => {
-  transition?.goTo(n, l, m)
-})
-
-let configured = false
-$effect(() => {
-  const d = morphDuration
-  const e = morphEasing
-  if (!transition) return
-  // the constructor already used the initial values
-  if (configured) transition.configure(d, e)
-  configured = true
-})
+// switch orbitals by morphing in place (no remount)
+const orbital$ = observe(() => ({ n, l, m }))
+const morphConfig$ = observe(() => ({
+  duration: morphDuration,
+  easing: morphEasing,
+}))
 
 // reusable scratch colors; hex strings (sRGB) -> linear working values
 const albedoColor = new THREE.Color()
@@ -91,13 +81,11 @@ function makeTarget(w: number, h: number): THREE.WebGLRenderTarget {
 
 onMount(() => {
   const grid = new SphereGrid({ count, gridRes })
-  const morph = new OrbitalTransition(
-    grid.uniforms,
-    { n, l, m },
-    (state) => grid.setOrbitalState(state),
-    { duration: morphDuration, easing: morphEasing },
-  )
-  transition = morph
+  const orbitalStateSub = orbitalStates({
+    orbital$,
+    config$: morphConfig$,
+    uniforms: grid.uniforms,
+  }).subscribe((state) => grid.setOrbitalState(state))
 
   const uniforms = {
     uCameraPos: { value: new THREE.Vector3() },
@@ -235,7 +223,7 @@ onMount(() => {
     displayMaterial.dispose()
     read.dispose()
     write.dispose()
-    morph.dispose()
+    orbitalStateSub.unsubscribe()
     grid.dispose()
   }
 })

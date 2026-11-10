@@ -1,28 +1,34 @@
 import { angularDensity } from './angularDensity.js'
 import { makeInverseCdfSampler } from './inverseCdfSampler.js'
 import type { ParticleUniforms } from './particleUniforms.js'
+import type { QuantumNumbers } from './quantumNumbers.js'
 import { radialDensity } from './radialDensity.js'
 
+const RADIAL_TABLE_SIZE = 2048
+const POLAR_TABLE_SIZE = 1024
+
 /**
- * Where every particle sits in one orbital, in spherical (r, polar), world
- * units. Azimuth is not part of the shape: |ψ|² is φ-independent for a complex
- * eigenstate, so φ belongs to the motion and is carried separately.
+ * Per-particle spherical position, world units: radius and polar angle from +Y.
+ * Read-only views; the arrays may be shared (cached shapes) or reused buffers.
+ */
+export interface SphericalShape {
+  readonly r: ArrayLike<number>
+  readonly polar: ArrayLike<number>
+}
+
+/**
+ * Where every particle sits in one orbital. Azimuth is not part of the shape:
+ * |ψ|² is φ-independent for a complex eigenstate, so φ belongs to the motion.
  *
  * A plain object (not a class) on purpose: intween's state handling deep-clones
  * plain objects and arrays but passes typed arrays through by reference, so
  * shapes travel through a tween cheaply and intact.
  */
-export interface OrbitalShape {
-  kind: 'orbital'
-  n: number
-  l: number
-  m: number
-  /** radius per particle, world units */
-  r: Float32Array
-  /** polar angle from the +Y spin axis per particle, [0, π] */
-  polar: Float32Array
+export interface OrbitalShape extends SphericalShape {
+  readonly kind: 'orbital'
+  readonly orbital: QuantumNumbers
   /** ⟨r⟩ in world units */
-  meanRadius: number
+  readonly meanRadius: number
 }
 
 export interface OrbitalShapeOptions {
@@ -33,50 +39,40 @@ export interface OrbitalShapeOptions {
 }
 
 /**
- * Map fixed per-particle uniforms through orbital (n,l,m)'s radial and polar
- * inverse CDFs. Same uniforms + different orbital = the same particles in their
- * new places. The fit scale uses the exact radial quantile rather than an
- * empirical percentile, so it's deterministic.
+ * Map fixed per-particle uniforms through the orbital's radial and polar
+ * inverse CDFs: same uniforms + different orbital = the same particles in
+ * their new places. Fitting to the exact radial quantile (not an empirical
+ * percentile) keeps the result deterministic.
  */
 export function orbitalShape(
-  n: number,
-  l: number,
-  m: number,
+  orbital: QuantumNumbers,
   uniforms: ParticleUniforms,
   { clusterRadius = 1.4, fitPercentile = 0.99 }: OrbitalShapeOptions = {},
 ): OrbitalShape {
+  const { n, l, m } = orbital
   const meanRadiusAtomic = (3 * n * n - l * (l + 1)) / 2
-  const rMaxAtomic = 4 * meanRadiusAtomic + 10
   const radialQuantile = makeInverseCdfSampler(
     radialDensity(n, l),
     0,
-    rMaxAtomic,
-    2048,
+    4 * meanRadiusAtomic + 10,
+    RADIAL_TABLE_SIZE,
   )
   const polarQuantile = makeInverseCdfSampler(
     angularDensity(l, m),
     0,
     Math.PI,
-    1024,
+    POLAR_TABLE_SIZE,
   )
-
   const scale = clusterRadius / (radialQuantile(fitPercentile) || 1)
-  const count = uniforms.uR.length
-  const r = new Float32Array(count)
-  const polar = new Float32Array(count)
-  for (let i = 0; i < count; i++) {
-    // clamp the rare far-tail points so everything stays inside the grid bounds
-    r[i] = Math.min(radialQuantile(uniforms.uR[i]!) * scale, clusterRadius)
-    polar[i] = polarQuantile(uniforms.uPolar[i]!)
-  }
+  // clamp the rare far-tail points so everything stays inside the grid bounds
+  const toWorldRadius = (u: number) =>
+    Math.min(radialQuantile(u) * scale, clusterRadius)
 
   return {
     kind: 'orbital',
-    n,
-    l,
-    m,
-    r,
-    polar,
+    orbital,
+    r: Float32Array.from(uniforms.uR, toWorldRadius),
+    polar: Float32Array.from(uniforms.uPolar, polarQuantile),
     meanRadius: meanRadiusAtomic * scale,
   }
 }

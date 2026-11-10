@@ -1,18 +1,18 @@
 // Minimal types for the parts of intween (1.0.0-beta.9, untyped JS) we use.
 declare module 'intween' {
-  export interface Subscription {
+  export interface Unsubscribable {
     unsubscribe(): void
   }
 
-  export interface Observable<T> {
-    subscribe(next: (value: T) => void): Subscription
-    pipe<R>(op: (source: Observable<T>) => Observable<R>): Observable<R>
+  export interface Observer<T> {
+    next(value: T): void
+    error(err: unknown): void
+    complete(): void
   }
 
-  export class Subject<T> implements Observable<T> {
-    next(value: T): void
-    subscribe(next: (value: T) => void): Subscription
-    pipe<R>(op: (source: Observable<T>) => Observable<R>): Observable<R>
+  /** Anything with an observer-object `subscribe`: intween and rxjs Observables both qualify. */
+  export interface Subscribable<T> {
+    subscribe(observer: Observer<T>): Unsubscribable
   }
 
   export type Easing = string | ((k: number) => number)
@@ -30,12 +30,13 @@ declare module 'intween' {
   }
 
   /**
-   * Turn a stream of target states into a stream of animated states, starting
-   * from wherever the animation currently is; retargeting mid-flight composes.
+   * Turn a stream of target states into a stream of animated states (one per
+   * animation frame while moving), starting from `getState()`; retargeting
+   * mid-flight composes.
    */
   export function smoothen<S>(
     config: SmoothenConfig,
     getState?: (() => S) | null,
     schema?: { [K in keyof S]: SchemaProp<S[K]> | S[K] },
-  ): (source: Observable<Partial<S>>) => Observable<S>
+  ): (source: Subscribable<Partial<S>>) => Subscribable<S>
 }

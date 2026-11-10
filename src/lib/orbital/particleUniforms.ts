@@ -1,3 +1,5 @@
+const FULL_TURN = 2 * Math.PI
+
 /**
  * The per-particle random numbers that pick where a particle sits in *any*
  * orbital. A particle keeps these for its whole life: its position in orbital
@@ -18,13 +20,7 @@ export function drawParticleUniforms(
   count: number,
   rng: () => number = Math.random,
 ): ParticleUniforms {
-  const uR = new Float32Array(count)
-  const uPolar = new Float32Array(count)
-  const phi = new Float32Array(count)
-  for (let i = 0; i < count; i++) {
-    uR[i] = rng()
-    uPolar[i] = rng()
-    phi[i] = rng() * 2 * Math.PI
-  }
-  return { uR, uPolar, phi }
+  const draw = (scale = 1) =>
+    Float32Array.from({ length: count }, () => rng() * scale)
+  return { uR: draw(), uPolar: draw(), phi: draw(FULL_TURN) }
 }

@@ -1,10 +1,11 @@
 import * as THREE from 'three'
+import type { SphericalShape } from '../../orbital/orbitalShape.js'
 import type { OrbitalState } from '../../orbital/orbitalTransition.js'
 import {
   drawParticleUniforms,
   type ParticleUniforms,
 } from '../../orbital/particleUniforms.js'
-import { evaluateShape, ShapeScratch } from '../../orbital/shapeMix.js'
+import { createShapeEvaluator, type ShapeExpr } from '../../orbital/shapeMix.js'
 import { probabilityCurrentOmega } from '../../orbital/velocity.js'
 
 export interface SphereGridOptions {
@@ -98,9 +99,7 @@ export class SphereGrid {
   private readonly omegaSoftening: number
   /** latest orbital state, applied to radii/yPos/speed on the next update() */
   private pendingState: OrbitalState | null = null
-  private readonly shapeR: Float32Array
-  private readonly shapePolar: Float32Array
-  private readonly shapeScratch: ShapeScratch
+  private readonly evaluateShape: (expr: ShapeExpr) => SphericalShape
 
   private readonly spherePosData: Float32Array
   private readonly cellRangeData: Float32Array
@@ -133,9 +132,7 @@ export class SphereGrid {
     this.yPos = new Float32Array(count)
     this.speed = new Float32Array(count)
     this.radiusRand = new Float32Array(count)
-    this.shapeR = new Float32Array(count)
-    this.shapePolar = new Float32Array(count)
-    this.shapeScratch = new ShapeScratch(count)
+    this.evaluateShape = createShapeEvaluator(count)
 
     // azimuth starts at the particle's own uniform; it is never re-drawn
     this.uniforms = drawParticleUniforms(count)
@@ -180,17 +177,15 @@ export class SphereGrid {
   /** Spherical shape -> cylindrical motion state (ρ, y) and ω = m/ρ². */
   private applyOrbitalState(state: OrbitalState): void {
     // explicit member reads (biome's unused-private check misses destructure reads)
-    const shapeR = this.shapeR
-    const shapePolar = this.shapePolar
     const radii = this.radii
     const yPos = this.yPos
     const speed = this.speed
-    evaluateShape(state.shape, shapeR, shapePolar, this.shapeScratch)
+    const shape = this.evaluateShape(state.shape)
     const m = state.m
     const soft = this.omegaSoftening
     for (let i = 0; i < this.count; i++) {
-      const r = shapeR[i]!
-      const p = shapePolar[i]!
+      const r = shape.r[i]!
+      const p = shape.polar[i]!
       const rho = r * Math.sin(p)
       radii[i] = rho
       yPos[i] = r * Math.cos(p)
