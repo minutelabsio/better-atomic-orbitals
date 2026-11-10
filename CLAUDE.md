@@ -5,7 +5,7 @@ Goal: replicate the atomic-orbital visualizations in https://www.youtube.com/wat
 The flagship is the **Many Spheres (RT)** scene (`src/lib/scenes/manySpheres/`): a GPU ray tracer for up to ~50k+ spheres.
 
 Strategy:
-- **Acceleration:** a single-level uniform grid (`sphereGrid.ts`), rebuilt every frame on the CPU via counting sort (O(N); spheres orbit + are equal-ish size, so a grid beats a BVH). Packed into float data textures.
+- **Acceleration:** a single-level uniform grid, rebuilt every frame on the CPU via counting sort (O(N); spheres orbit + are equal-ish size, so a grid beats a BVH), packed into float data textures. `sphereGrid.ts` composes `particleSwarm.ts` (motion), `gridBuilder.ts` (counting sort), `gridGeometry.ts`, `packedFloatTexture.ts` and `cutaway.ts`.
 - **Render:** a fullscreen-quad fragment shader (`manySpheres.frag.glsl`, GLSL3) does Amanatides–Woo DDA grid traversal + analytic ray–sphere intersection.
 - **Lighting:** direct diffuse (+ key-light shadow ray) plus one cosine-weighted diffuse bounce = inter-sphere color bleeding. Noise is cleaned by **temporal accumulation** (EMA over frames in ping-pong render targets). Tradeoff: moving geometry causes motion blur — the planned fix is motion-vector reprojection (see `planning/motion-vector-reprojection.md`).
 - **Controls** (`App.svelte`, live props): sphere count, resolution scale, blend (accumulation), radius + variation, randomize (stochastic vs deterministic bounce), cutaway (cull top-front quarter — done in the grid build so it's also a perf win), sphere/background colors.
@@ -16,9 +16,11 @@ Run/verify: `pnpm dev`. No GPU in the sandbox — screenshot via headless Chromi
 
 Keep functionality in **small, single-purpose modules organized by purpose** — avoid large sprawling source files. Prefer extracting a pure, importable helper over inlining, and build shared utilities incrementally as they're needed (not one giant module up front). Examples in the tree:
 - GLSL is modularized into `src/lib/scenes/manySpheres/shared/*.glsl` (rng, intersect, grid traversal, lighting, …), pulled in via glslify `#pragma glslify: require`. Gotchas when editing these are documented in agent memory (`glslify-gotchas`).
-- Orbital physics lives in `src/lib/orbital/` as one concern per file: `velocity.ts`, `coords.ts`, `laguerre.ts`, `legendre.ts`, `inverseCdfSampler.ts`, `radialDensity.ts`, `angularDensity.ts`, `particleUniforms.ts` (per-particle random numbers, fixed for life), `orbitalShape.ts` (uniforms → (r, polar) for one orbital), `shapeMix.ts` (lazy blends of shapes), `orbitalTransition.ts` (intween `smoothen` morphs between orbitals; tweens shape + m, so ω = m/ρ² follows).
+- Orbital physics lives in `src/lib/orbital/` as one concern per file: `velocity.ts`, `coords.ts`, `laguerre.ts`, `legendre.ts`, `inverseCdfSampler.ts`, `radialDensity.ts`, `angularDensity.ts`, `particleUniforms.ts` (per-particle random numbers, fixed for life), `orbitalShape.ts` (uniforms → (r, polar) for one orbital), `shapeMix.ts` (lazy blends of shapes), `orbitalTransition.ts` (`orbitalStates()`: an rxjs pipeline over orbital$/config$ streams through intween `smoothen`; tweens shape + m, so ω = m/ρ² follows).
 
-Reason in the most natural coordinate system for each concern and convert only at the boundaries: **spherical** for sampling the orbital shape → **cylindrical** `(ρ, φ, y)` for the motion (it's a rigid azimuthal spin; this is what `SphereGrid` stores/animates) → **cartesian** for the shader (per-frame hot loop). See `planning/hydrogen-orbitals.md`.
+Style: factories and closures, not classes; reactive flow as rxjs/intween pipelines (`src/lib/rx/`: `observe()` bridges Svelte state to Observables, `smoothen` wraps intween as an rxjs operator). Per-frame hot loops are the exception to functional style: indexed loops over typed arrays, written as module-level functions over explicit buffers. Note: vitest's module transform makes cross-module calls slow, so benchmark hot loops from an esbuild bundle run in node, not under vitest.
+
+Reason in the most natural coordinate system for each concern and convert only at the boundaries: **spherical** for sampling the orbital shape → **cylindrical** `(ρ, φ, y)` for the motion (it's a rigid azimuthal spin; this is what `particleSwarm.ts` stores/animates) → **cartesian** for the shader (per-frame hot loop). See `planning/hydrogen-orbitals.md`.
 
 ---
 

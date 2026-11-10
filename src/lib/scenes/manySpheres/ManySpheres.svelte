@@ -7,7 +7,7 @@ import { observe } from '../../rx/observe.svelte.js'
 import fragmentShader from './manySpheres.frag.glsl'
 import vertexShader from './manySpheres.vert.glsl'
 import displayShader from './manySpheresDisplay.frag.glsl'
-import { SphereGrid } from './sphereGrid.js'
+import { createSphereGrid } from './sphereGrid.js'
 
 const ctx = getContext<{
   scene: THREE.Scene
@@ -80,7 +80,7 @@ function makeTarget(w: number, h: number): THREE.WebGLRenderTarget {
 }
 
 onMount(() => {
-  const grid = new SphereGrid({ count, gridRes })
+  const grid = createSphereGrid({ count, gridRes })
   const orbitalStateSub = orbitalStates({
     orbital$,
     config$: morphConfig$,
@@ -90,15 +90,7 @@ onMount(() => {
   const uniforms = {
     uCameraPos: { value: new THREE.Vector3() },
     uInvViewProj: { value: new THREE.Matrix4() },
-    uSpherePos: { value: grid.spherePosTex },
-    uCellRange: { value: grid.cellRangeTex },
-    uIndexList: { value: grid.indexListTex },
-    uSpherePosTexW: { value: grid.spherePosTexW },
-    uCellRangeTexW: { value: grid.cellRangeTexW },
-    uIndexListTexW: { value: grid.indexListTexW },
-    uGridRes: { value: grid.gridRes },
-    uBoundMin: { value: grid.boundMin },
-    uCellSize: { value: grid.cellSize },
+    ...grid.shaderUniforms,
     uAlbedo: { value: new THREE.Vector3() },
     uBackground: { value: new THREE.Vector3() },
     uHistory: { value: null as THREE.Texture | null },

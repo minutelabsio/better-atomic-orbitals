@@ -8,7 +8,7 @@ import vertexShader from './manySpheres.vert.glsl'
 import displayShader from './manySpheresDisplay.frag.glsl'
 import objGIShader from './manySpheresObjGI.frag.glsl'
 import probeShader from './manySpheresProbe.frag.glsl'
-import { SphereGrid } from './sphereGrid.js'
+import { createSphereGrid } from './sphereGrid.js'
 
 const ctx = getContext<{
   scene: THREE.Scene
@@ -91,28 +91,14 @@ function makeSphereTarget(w: number, h: number): THREE.WebGLRenderTarget {
 }
 
 onMount(() => {
-  const grid = new SphereGrid({ count, gridRes })
+  const grid = createSphereGrid({ count, gridRes })
   const orbitalStateSub = orbitalStates({
     orbital$,
     config$: morphConfig$,
     uniforms: grid.uniforms,
   }).subscribe((state) => grid.setOrbitalState(state))
-  const sphereTexW = grid.spherePosTexW
-  const sphereTexH = (grid.spherePosTex.image as { height: number }).height
-
-  // shared grid uniforms (texture references are stable; data is updated in place)
-  const gridUniforms = {
-    uSpherePos: { value: grid.spherePosTex },
-    uCellRange: { value: grid.cellRangeTex },
-    uIndexList: { value: grid.indexListTex },
-    uSpherePosTexW: { value: grid.spherePosTexW },
-    uSphereTexH: { value: sphereTexH },
-    uCellRangeTexW: { value: grid.cellRangeTexW },
-    uIndexListTexW: { value: grid.indexListTexW },
-    uGridRes: { value: grid.gridRes },
-    uBoundMin: { value: grid.boundMin },
-    uCellSize: { value: grid.cellSize },
-  }
+  const { width: sphereTexW, height: sphereTexH } = grid.spheres
+  const gridUniforms = grid.shaderUniforms
 
   // --- probe pass: per-sphere indirect accumulation ---
   const probeUniforms = {
