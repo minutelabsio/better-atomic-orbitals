@@ -1,7 +1,14 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
   "files": {
-    "includes": ["**", "!dist", "!.claude", "!node_modules", "!.mcp.json"]
+    "includes": [
+      "**",
+      "!dist",
+      "!.worktrees",
+      "!.claude",
+      "!node_modules",
+      "!.mcp.json"
+    ]
   },
   "assist": {
     "actions": {
