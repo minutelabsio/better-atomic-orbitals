@@ -103,14 +103,14 @@ export function createSphereGrid({
     sphereSpin.texture.needsUpdate = true
   }
 
-  // Spin up is along the axis positive m circulates about, world -Y (see
-  // planning/hydrogen-orbitals.md, "Axis handedness"), so +1 slides down.
+  // Spin up is along world +Y (see planning/hydrogen-orbitals.md, "Axis
+  // handedness"), so +1 slides up.
   const separationOf = (amount: number): Separation | undefined => {
     if (amount === 0 || !orbitalState) return undefined
     const measured = spinFieldOf(orbitalState, 'measured')
     if (!measured) return undefined
     return {
-      distance: -SPIN_SEPARATION_DISTANCE * amount,
+      distance: SPIN_SEPARATION_DISTANCE * amount,
       direction: measured,
     }
   }

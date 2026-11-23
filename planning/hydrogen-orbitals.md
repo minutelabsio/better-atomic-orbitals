@@ -214,7 +214,7 @@ and where it lives:
   shown through a three-stop palette (`spinPalette.ts`). It's the local expectation value,
   so most spheres get an in-between color that no measurement would give.
 - **Separate by spin (`?split=1`).** Slides measured spin-up spheres along the axis
-  positive m circulates about (world −Y) and spin-down ones the other way, by
+  positive m circulates about (world +Y, up the screen) and spin-down ones the other way, by
   `SPIN_SEPARATION_DISTANCE`, tweened with the morph config (`spinSeparation.ts`). It's a
   drawing device reminiscent of Stern–Gerlach separation, not physical motion: the shift
   is added where spheres are written out, so the flow is untouched.
@@ -228,9 +228,9 @@ Decisions:
 
 - **Handedness.** Everything is computed in the right-handed physics frame (ê_ρ, ê_φ, ê_axis)
   where positive m_j circulates with increasing φ, and ω drives the swarm's φ as m/ρ² does,
-  so the mirror placement of §2b ("Axis handedness") applies unchanged: positive m_j
-  circulates about world −Y. "Up" in the palette is spin along the axis positive m
-  circulates about (world −Y), the same convention as §2b's spin up.
+  so the placement of §2b ("Axis handedness") maps it straight onto the world: positive
+  m_j circulates about world +Y. "Up" in the palette is spin along +Y, the same convention
+  as §2b's spin up.
 - **Renderer.** One float per sphere (±1 measured, or the average's cos tilt) in a
   one-channel texture laid out like the sphere texture, uploaded only when the state or
   the choice changes; the shaders map it to a color by tilt angle, so ±1 lands on the

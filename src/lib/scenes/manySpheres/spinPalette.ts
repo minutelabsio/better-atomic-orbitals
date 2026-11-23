@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 /**
  * Sphere colors for "color by spin", by the spin's tilt from the quantization
- * axis (sRGB hex). Up is the axis positive m circulates about (world -Y; see
+ * axis (sRGB hex). Up is the axis positive m circulates about, world +Y (see
  * planning/hydrogen-orbitals.md, "Axis handedness").
  */
 export const SPIN_PALETTE = {
