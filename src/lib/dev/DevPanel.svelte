@@ -6,8 +6,11 @@ import {
   List,
   Pane,
   Slider,
+  Text,
 } from 'svelte-tweakpane-ui'
+import { isFineStructure } from '../orbital/fineStructure'
 import { formatHydrogenStateNotation } from '../orbital/hydrogenStateNotation'
+import { currentColoring, selectColoring } from '../routing/colorRoute.svelte'
 import { ORBITAL_PARAM } from '../routing/orbitalParam'
 import { currentOrbital } from '../routing/orbitalRoute.svelte'
 import { currentSpin, selectSpin } from '../routing/spinRoute.svelte'
@@ -46,7 +49,12 @@ const percent = (v: number) => `±${Math.round(v * 100)}%`
         () => formatHydrogenStateNotation(currentOrbital()),
         (notation) => setParam(ORBITAL_PARAM, notation)
       } />
-    <List label="spin" options={spinOptions} bind:value={currentSpin, selectSpin} />
+    {#if isFineStructure(currentOrbital())}
+      <!-- a fine-structure state carries its own spin mix: the setting doesn't apply -->
+      <Text label="spin" value="set by j, mj" disabled />
+    {:else}
+      <List label="spin" options={spinOptions} bind:value={currentSpin, selectSpin} />
+    {/if}
     <Slider label="speed" min={0} max={0.005} step={0.0001} bind:value={settings.speed} />
     <Slider
       label="morph"
@@ -85,7 +93,10 @@ const percent = (v: number) => `±${Math.round(v * 100)}%`
       bind:value={settings.radiusVariation}
     />
     <Color label="sphere" bind:value={settings.sphereColor} />
-    <Checkbox label="color by spin" bind:value={settings.colorBySpin} />
+    <Checkbox label="color by spin" bind:value={
+        () => currentColoring() === 'spin',
+        (bySpin) => selectColoring(bySpin ? 'spin' : 'plain')
+      } />
     <Color label="background" bind:value={settings.bgColor} />
   </Folder>
 

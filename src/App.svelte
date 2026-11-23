@@ -2,6 +2,7 @@
 import DevPanel from './lib/dev/DevPanel.svelte'
 import { GI_OBJECT_SPACE } from './lib/dev/devOptions'
 import { defaultDevSettings } from './lib/dev/devSettings'
+import { currentColoring } from './lib/routing/colorRoute.svelte'
 import { currentOrbital } from './lib/routing/orbitalRoute.svelte'
 import { currentSpin } from './lib/routing/spinRoute.svelte'
 import { searchParams } from './lib/routing/url.svelte'
@@ -12,6 +13,7 @@ import Three from './lib/Three.svelte'
 // linkable state lives in the URL; dev-only render settings stay local
 const orbital = $derived(currentOrbital())
 const spin = $derived(currentSpin())
+const colorBySpin = $derived(currentColoring() === 'spin')
 const debug = $derived(searchParams().has('debug'))
 
 let settings = $state(defaultDevSettings())
@@ -27,7 +29,7 @@ let settings = $state(defaultDevSettings())
           blend={settings.objBlend}
           samples={settings.objSamples}
           sphereColor={settings.sphereColor}
-          colorBySpin={settings.colorBySpin}
+          {colorBySpin}
           bgColor={settings.bgColor}
           cutaway={settings.cutaway}
           cutawayFeather={settings.cutawayFeather}
@@ -47,7 +49,7 @@ let settings = $state(defaultDevSettings())
           randomize={settings.randomize}
           indirect={settings.indirect}
           sphereColor={settings.sphereColor}
-          colorBySpin={settings.colorBySpin}
+          {colorBySpin}
           bgColor={settings.bgColor}
           cutaway={settings.cutaway}
           cutawayFeather={settings.cutawayFeather}

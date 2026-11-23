@@ -24,7 +24,7 @@ modes (§5), multi-orbital layout (§6).
 - **[prototype] Spin current (§2b).** Pauli spin term added to ω, off by default;
   `?spin=up|down` or the dev panel's spin list.
 - **[prototype] Fine structure (§2c).** Spin–orbit states |n l j m_j⟩ in the orbital
-  list and as `?o=2p3/2m1/2`; dev panel "color by spin" colors spheres by spin tilt.
+  list and as `?o=2p3/2m1/2`, colored by spin tilt by default (`?color=spin|plain`).
 - **[todo] Size (§3), colour (§4), cutaway modes (§5), multi-orbital layout (§6).**
 
 ### Coordinate plan (decided)
@@ -210,8 +210,11 @@ Decisions:
   circulates about (world −Y), the same convention as §2b's spin up.
 - **Renderer.** One float per sphere (spin along the axis) in a one-channel texture laid out
   like the sphere texture, uploaded only when the state changes; the shaders map it to a
-  color by tilt angle. With the toggle off, or for a spinless state (plain orbital, spin
-  off), the uniform sphere color is used. In the object-space GI probe a bounce takes the
+  color by tilt angle. The coloring is `?color=spin|plain`; absent, a fine-structure state
+  gets `spin` and a plain orbital `plain` (`sphereColoring.ts`), so a bare
+  `?o=2p1/2m1/2` link shows the spin texture. A spinless state (plain orbital, spin off)
+  keeps the uniform sphere color either way. The dev panel's spin list doesn't apply to a
+  fine-structure state and is shown disabled. In the object-space GI probe a bounce takes the
   neighbour's own color, so color bleeding still works; both renderers support it.
 - **Morphs.** Shapes morph as usual. The fine-structure ω field blends between endpoints
   like the §2b spin term while the m/ρ² term fades with the tweened m, so speeds change
