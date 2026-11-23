@@ -20,7 +20,7 @@ Keep functionality in **small, single-purpose modules organized by purpose** —
 
 Style: factories and closures, not classes; reactive flow as rxjs/intween pipelines (`src/lib/rx/`: `observe()` bridges Svelte state to Observables, `smoothen` wraps intween as an rxjs operator). Per-frame hot loops are the exception to functional style: indexed loops over typed arrays, written as module-level functions over explicit buffers. Note: vitest's module transform makes cross-module calls slow, so benchmark hot loops from an esbuild bundle run in node, not under vitest.
 
-Reason in the most natural coordinate system for each concern and convert only at the boundaries: **spherical** for sampling the orbital shape → **cylindrical** `(ρ, φ, y)` for the motion (it's a rigid azimuthal spin; this is what `particleSwarm.ts` stores/animates) → **cartesian** for the shader (per-frame hot loop). See `planning/hydrogen-orbitals.md`.
+Reason in the most natural coordinate system for each concern and convert only at the boundaries: **spherical** for sampling the orbital shape → **cylindrical** `(ρ, φ, y)` for the motion (it's a rigid azimuthal spin; this is what `particleSwarm.ts` stores/animates; right-handed about +Y, so positive m and spin up point along +Y, pinned by `particleSwarm.test.ts`) → **cartesian** for the shader (per-frame hot loop). See `planning/hydrogen-orbitals.md`.
 
 ---
 
