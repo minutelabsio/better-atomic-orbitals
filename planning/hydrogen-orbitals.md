@@ -24,7 +24,8 @@ modes (§5), multi-orbital layout (§6).
 - **[prototype] Spin current (§2b).** Pauli spin term added to ω, off by default;
   `?spin=up|down` or the dev panel's spin list.
 - **[prototype] Fine structure (§2c).** Spin–orbit states |n l j m_j⟩ in the orbital
-  list and as `?o=2p3/2m1/2`, colored by spin tilt by default (`?color=spin|plain`).
+  list and as `?o=2p3/2m1/2`, colored by measured spin by default
+  (`?color=measured|average|plain`); `?split=1` separates the two spins.
 - **[todo] Size (§3), colour (§4), cutaway modes (§5), multi-orbital layout (§6).**
 
 ### Coordinate plan (decided)
@@ -192,9 +193,26 @@ and where it lives:
   plus a cross term from the sideways spin; a stretched state (m_j = ±(l+½)) is therefore
   exactly the §2b orbital + spin term. A fine-structure shape carries this whole ω as a
   per-particle field; its `OrbitalState.m` is 0 and the spin setting doesn't apply to it.
-- **Spin texture.** s = ψ†σψ/ψ†ψ lies in the meridional plane and depends on θ alone
-  (`spinDirection.ts`), so each particle's tilt is fixed for life; "color by spin" maps it
-  through a three-stop palette (`spinPalette.ts`).
+- **Measured spin (the default coloring).** Position and S_z commute, so the Born rule
+  gives a joint distribution: P(r, up) = |ψ↑|², P(r, down) = |ψ↓|². Each particle keeps a
+  fixed uniform `uSpin` and is labelled up when it falls below P(up | r) = |ψ↑|²/|ψ|²
+  (`measuredSpin.ts`). Positions stay samples of |ψ|², so the labelled cloud has exactly
+  that joint distribution, and since P(up | r) depends on θ alone the label holds along
+  each orbit. Spheres are colored orange (up) or blue (down). The colors label possible
+  measurement outcomes for the one electron, not separate particles: every sphere, either
+  color, follows the electron's single Pauli flow. 2p1/2 m_j=½ shows as ⅓ up in a p0
+  dumbbell plus ⅔ down in a p(+1) torus, together a round cloud; 2p3/2 m_j=½ is the same
+  two shapes weighted ⅔ up, ⅓ down. `measuredSpin.test.ts` checks the up fraction against
+  |c↑|² and each spin's polar histogram against its |Y_l^m|² sin θ.
+- **Average spin (`?color=average`).** s = ψ†σψ/ψ†ψ lies in the meridional plane and
+  depends on θ alone (`spinDirection.ts`), so each particle's tilt is fixed for life; it's
+  shown through a three-stop palette (`spinPalette.ts`). It's the local expectation value,
+  so most spheres get an in-between color that no measurement would give.
+- **Separate by spin (`?split=1`).** Slides measured spin-up spheres along the axis
+  positive m circulates about (world −Y) and spin-down ones the other way, by
+  `SPIN_SEPARATION_DISTANCE`, tweened with the morph config (`spinSeparation.ts`). It's a
+  drawing device reminiscent of Stern–Gerlach separation, not physical motion: the shift
+  is added where spheres are written out, so the flow is untouched.
 - **Checks.** `fineStructureCurrent.test.ts` compares against Colijn & Vrscay
   (quant-ph/0304198) Table 1, all five rows and their −m_j mirrors, and against a
   brute-force current from finite differences of the complex spinor (hand-written R_nl,
@@ -208,14 +226,22 @@ Decisions:
   so the mirror placement of §2b ("Axis handedness") applies unchanged: positive m_j
   circulates about world −Y. "Up" in the palette is spin along the axis positive m
   circulates about (world −Y), the same convention as §2b's spin up.
-- **Renderer.** One float per sphere (spin along the axis) in a one-channel texture laid out
-  like the sphere texture, uploaded only when the state changes; the shaders map it to a
-  color by tilt angle. The coloring is `?color=spin|plain`; absent, a fine-structure state
-  gets `spin` and a plain orbital `plain` (`sphereColoring.ts`), so a bare
-  `?o=2p1/2m1/2` link shows the spin texture. A spinless state (plain orbital, spin off)
+- **Renderer.** One float per sphere (±1 measured, or the average's cos tilt) in a
+  one-channel texture laid out like the sphere texture, uploaded only when the state or
+  the choice changes; the shaders map it to a color by tilt angle, so ±1 lands on the
+  palette's two ends. The coloring is `?color=measured|average|plain`; absent, a
+  fine-structure state gets `measured` and a plain orbital `plain` (`sphereColoring.ts`),
+  so a bare `?o=2p1/2m1/2` link shows the two spins. A spinless state (plain orbital, spin off)
   keeps the uniform sphere color either way. The dev panel's spin list doesn't apply to a
   fine-structure state and is shown disabled. In the object-space GI probe a bounce takes the
   neighbour's own color, so color bleeding still works; both renderers support it.
+- **Separation distance and the grid.** The grid is a fixed-resolution cube just around the
+  cloud, so while separated its extent widens by the shift (`gridExtent`, same cell count).
+  Bigger cells hold more spheres, and a cell past the tracer's 64-sphere cap drops the rest:
+  at 50k spheres that already happens in today's 1s core, and the split adds some more in
+  the separated cores. The distance (1 world unit, about 0.7 of the cloud radius) keeps both
+  halves mostly in the default camera's view; the p0 dumbbell's tips still reach past the
+  bottom edge.
 - **Morphs.** Shapes morph as usual. The fine-structure ω field blends between endpoints
   like the §2b spin term while the m/ρ² term fades with the tweened m, so speeds change
   smoothly but aren't the current of any in-between state. Colors don't blend: they snap
