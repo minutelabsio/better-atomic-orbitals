@@ -6,12 +6,17 @@ import {
   type SpinField,
 } from '../../orbital/spinFieldOfState.js'
 import { createGridBuilder } from './gridBuilder.js'
-import { gridGeometry } from './gridGeometry.js'
+import { gridExtent, gridGeometry } from './gridGeometry.js'
 import {
   type PackedFloatTexture,
   packedFloatTexture,
 } from './packedFloatTexture.js'
-import { createParticleSwarm, type SphereStyle } from './particleSwarm.js'
+import {
+  createParticleSwarm,
+  type Separation,
+  type SphereStyle,
+} from './particleSwarm.js'
+import { SPIN_SEPARATION_DISTANCE } from './spinSeparation.js'
 
 export interface SphereGridOptions {
   count: number
@@ -21,11 +26,16 @@ export interface SphereGridOptions {
   clusterRadius?: number
 }
 
-export interface SphereGridFrame extends SphereStyle {
+export interface SphereGridFrame extends Omit<SphereStyle, 'separation'> {
   /** visual speed scale applied to each particle's angular velocity */
   speedScale: number
   /** which spin goes into `sphereSpin` */
   spinField: SpinField
+  /**
+   * 0 … 1: how far spin-up and spin-down spheres are slid apart along the
+   * axis (by measured spin), as a fraction of `SPIN_SEPARATION_DISTANCE`
+   */
+  separation: number
 }
 
 export interface SphereGrid {
@@ -55,10 +65,8 @@ export function createSphereGrid({
   gridRes = 32,
   clusterRadius = 1.4,
 }: SphereGridOptions): SphereGrid {
-  const geometry = gridGeometry({
-    gridRes,
-    boundRadius: clusterRadius + BOUND_MARGIN,
-  })
+  const boundRadius = clusterRadius + BOUND_MARGIN
+  const geometry = gridGeometry({ gridRes, boundRadius })
   const swarm = createParticleSwarm({ count })
   const spheres = packedFloatTexture(count, 4)
   const sphereSpin = packedFloatTexture(count, 1)
@@ -95,6 +103,27 @@ export function createSphereGrid({
     sphereSpin.texture.needsUpdate = true
   }
 
+  // Spin up is along the axis positive m circulates about, world -Y (see
+  // planning/hydrogen-orbitals.md, "Axis handedness"), so +1 slides down.
+  const separationOf = (amount: number): Separation | undefined => {
+    if (amount === 0 || !orbitalState) return undefined
+    const measured = spinFieldOf(orbitalState, 'measured')
+    if (!measured) return undefined
+    return {
+      distance: -SPIN_SEPARATION_DISTANCE * amount,
+      direction: measured,
+    }
+  }
+
+  // widen the grid to keep separated spheres inside it (same cell count)
+  const setGridExtent = (separation: Separation | undefined) => {
+    const extra = separation ? Math.abs(separation.distance) : 0
+    const extent = gridExtent(gridRes, boundRadius + extra)
+    shaderUniforms.uBoundMin.value = extent.boundMin
+    shaderUniforms.uCellSize.value = extent.cellSize
+    return extent
+  }
+
   return {
     uniforms: swarm.uniforms,
     spheres,
@@ -104,12 +133,16 @@ export function createSphereGrid({
       orbitalState = state
       swarm.setOrbitalState(state)
     },
-    update({ speedScale, spinField, ...style }) {
+    update({ speedScale, spinField, separation: amount, ...style }) {
       showSpin(orbitalState && spinFieldOf(orbitalState, spinField))
+      const separation = separationOf(amount)
       swarm.advance(speedScale)
-      swarm.writeSpheres(spheres.data, style)
+      swarm.writeSpheres(spheres.data, { ...style, separation })
       spheres.texture.needsUpdate = true
-      grid.build(spheres.data, { cutaway: style.cutaway ?? false })
+      grid.build(spheres.data, {
+        cutaway: style.cutaway ?? false,
+        extent: setGridExtent(separation),
+      })
     },
     dispose() {
       spheres.texture.dispose()

@@ -14,6 +14,7 @@ import { currentColoring, selectColoring } from '../routing/colorRoute.svelte'
 import { ORBITAL_PARAM } from '../routing/orbitalParam'
 import { currentOrbital } from '../routing/orbitalRoute.svelte'
 import { currentSpin, selectSpin } from '../routing/spinRoute.svelte'
+import { currentSplit, selectSplit } from '../routing/splitRoute.svelte'
 import { setParam } from '../routing/url.svelte'
 import {
   coloringOptions,
@@ -95,6 +96,7 @@ const percent = (v: number) => `±${Math.round(v * 100)}%`
     />
     <Color label="sphere" bind:value={settings.sphereColor} />
     <List label="color" options={coloringOptions} bind:value={currentColoring, selectColoring} />
+    <Checkbox label="split by spin" bind:value={currentSplit, selectSplit} />
     <Color label="background" bind:value={settings.bgColor} />
   </Folder>
 

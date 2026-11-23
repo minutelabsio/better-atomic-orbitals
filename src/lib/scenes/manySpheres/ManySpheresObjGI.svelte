@@ -13,6 +13,7 @@ import probeShader from './manySpheresProbe.frag.glsl'
 import { type SphereColoring, spinFieldOf } from './sphereColoring.js'
 import { createSphereGrid } from './sphereGrid.js'
 import { spinPaletteMatrix } from './spinPalette.js'
+import { separationAmounts } from './spinSeparation.js'
 
 const ctx = getContext<{
   scene: THREE.Scene
@@ -30,6 +31,7 @@ let {
   samples = 1,
   sphereColor = '#ec7813',
   coloring = 'plain',
+  split = false,
   bgColor = '#33373d',
   cutaway = false,
   cutawayFeather = 0,
@@ -49,6 +51,8 @@ let {
   sphereColor?: string
   /** sphere colors: by measured or average spin (when the state has spin), or plain sphereColor */
   coloring?: SphereColoring
+  /** slide spin-up and spin-down spheres apart along the axis */
+  split?: boolean
   bgColor?: string
   cutaway?: boolean
   cutawayFeather?: number
@@ -70,6 +74,7 @@ const morphConfig$ = observe(() => ({
   duration: morphDuration,
   easing: morphEasing,
 }))
+const split$ = observe(() => split)
 
 // reusable scratch colors; hex strings (sRGB) -> linear working values
 const albedoColor = new THREE.Color()
@@ -105,6 +110,13 @@ onMount(() => {
     config$: morphConfig$,
     uniforms: grid.uniforms,
   }).subscribe((state) => grid.setOrbitalState(state))
+  let separation = 0
+  const separationSub = separationAmounts({
+    split$,
+    config$: morphConfig$,
+  }).subscribe((amount) => {
+    separation = amount
+  })
   const { width: sphereTexW, height: sphereTexH } = grid.spheres
   const gridUniforms = grid.shaderUniforms
 
@@ -199,6 +211,7 @@ onMount(() => {
       cutawayFeather,
       speedScale: speed,
       spinField: spinFieldOf(coloring) ?? 'measured',
+      separation,
     })
 
     albedoColor.set(sphereColor)
@@ -260,6 +273,7 @@ onMount(() => {
     indirectWrite.dispose()
     frameTarget.dispose()
     orbitalStateSub.unsubscribe()
+    separationSub.unsubscribe()
     grid.dispose()
   }
 })

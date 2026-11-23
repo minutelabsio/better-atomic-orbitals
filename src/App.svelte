@@ -5,6 +5,7 @@ import { defaultDevSettings } from './lib/dev/devSettings'
 import { currentColoring } from './lib/routing/colorRoute.svelte'
 import { currentOrbital } from './lib/routing/orbitalRoute.svelte'
 import { currentSpin } from './lib/routing/spinRoute.svelte'
+import { currentSplit } from './lib/routing/splitRoute.svelte'
 import { searchParams } from './lib/routing/url.svelte'
 import ManySpheres from './lib/scenes/manySpheres/ManySpheres.svelte'
 import ManySpheresObjGI from './lib/scenes/manySpheres/ManySpheresObjGI.svelte'
@@ -14,6 +15,7 @@ import Three from './lib/Three.svelte'
 const orbital = $derived(currentOrbital())
 const spin = $derived(currentSpin())
 const coloring = $derived(currentColoring())
+const split = $derived(currentSplit())
 const debug = $derived(searchParams().has('debug'))
 
 let settings = $state(defaultDevSettings())
@@ -30,6 +32,7 @@ let settings = $state(defaultDevSettings())
           samples={settings.objSamples}
           sphereColor={settings.sphereColor}
           {coloring}
+          {split}
           bgColor={settings.bgColor}
           cutaway={settings.cutaway}
           cutawayFeather={settings.cutawayFeather}
@@ -50,6 +53,7 @@ let settings = $state(defaultDevSettings())
           indirect={settings.indirect}
           sphereColor={settings.sphereColor}
           {coloring}
+          {split}
           bgColor={settings.bgColor}
           cutaway={settings.cutaway}
           cutawayFeather={settings.cutawayFeather}

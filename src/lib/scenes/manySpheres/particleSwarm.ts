@@ -36,6 +36,16 @@ export interface SphereStyle {
   cutaway?: boolean
   /** world-space band over which spheres shrink to zero approaching the cut */
   cutawayFeather?: number
+  /** slide spheres along world Y by distance × their direction (drawing only) */
+  separation?: Separation
+}
+
+/** A per-sphere shift along world Y, applied where spheres are written out. */
+export interface Separation {
+  /** world units for a direction of 1 */
+  distance: number
+  /** per particle, typically ±1 */
+  direction: ParticleField
 }
 
 export interface ParticleSwarm {
@@ -184,11 +194,15 @@ function writeSpheres(
     radiusVariation = 0,
     cutaway = false,
     cutawayFeather = 0,
+    separation,
   }: SphereStyle,
 ): void {
   for (let i = 0; i < count; i += 1) {
     const x = rho[i]! * Math.cos(phi[i]!)
-    const y = height[i]!
+    const shift = separation
+      ? separation.distance * separation.direction[i]!
+      : 0
+    const y = height[i]! + shift
     const z = rho[i]! * Math.sin(phi[i]!)
     const radius = sphereRadius * (1 + radiusVariation * radiusJitter[i]!)
     const feather = cutaway ? cutawayFeatherScale(y, z, cutawayFeather) : 1

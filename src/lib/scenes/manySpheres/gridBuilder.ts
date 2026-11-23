@@ -1,5 +1,9 @@
 import { isInCutQuadrant } from './cutaway.js'
-import { clampedCellIndex, type GridGeometry } from './gridGeometry.js'
+import {
+  clampedCellIndex,
+  type GridExtent,
+  type GridGeometry,
+} from './gridGeometry.js'
 import {
   type PackedFloatTexture,
   packedFloatTexture,
@@ -19,6 +23,8 @@ export interface GridBuilderOptions {
 export interface GridBuildOptions {
   /** leave spheres in the cut quadrant out of the grid, so rays cross the opening cheaply */
   cutaway: boolean
+  /** where the cells sit this build, if not the geometry's own (same resolution) */
+  extent?: GridExtent
 }
 
 export interface GridBuilder {
@@ -70,8 +76,8 @@ export function createGridBuilder({
   return {
     cellRange,
     indexList,
-    build(spheres, { cutaway }) {
-      writeCoverage(buffers, spheres, cutaway)
+    build(spheres, { cutaway, extent = geometry }) {
+      writeCoverage(buffers, spheres, { cutaway, extent })
       countSpheresPerCell(buffers)
       writeCellRanges(buffers)
       scatterSphereIndices(buffers)
@@ -92,9 +98,9 @@ export function createGridBuilder({
 function writeCoverage(
   { geometry, sphereCount, coverage }: GridBuffers,
   spheres: Float32Array,
-  cutaway: boolean,
+  { cutaway, extent }: Required<GridBuildOptions>,
 ): void {
-  const { boundMin, cellSize } = geometry
+  const { boundMin, cellSize } = extent
   const last = geometry.gridRes - 1
   for (let sphere = 0; sphere < sphereCount; sphere += 1) {
     const s = sphere * SPHERE_STRIDE
