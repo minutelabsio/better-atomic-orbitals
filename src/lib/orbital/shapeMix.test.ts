@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { seededRng } from './__fixtures__/seededRng.js'
-import { orbitalShape } from './orbitalShape.js'
+import { type OrbitalShape, orbitalShape } from './orbitalShape.js'
 import { drawParticleUniforms } from './particleUniforms.js'
 import {
   createFieldEvaluator,
@@ -57,9 +57,11 @@ describe('createShapeEvaluator', () => {
 })
 
 describe('createFieldEvaluator', () => {
-  const meanRadiusField = (shape: typeof a) =>
+  const meanRadiusField = (shape: OrbitalShape) =>
     new Float32Array(COUNT).fill(shape.meanRadius)
-  const fields = new Map([a, b].map((shape) => [shape, meanRadiusField(shape)]))
+  const fields = new Map<OrbitalShape, Float32Array>(
+    [a, b].map((shape) => [shape, meanRadiusField(shape)]),
+  )
   const evaluateField = createFieldEvaluator(
     COUNT,
     (shape) => fields.get(shape)!,

@@ -14,13 +14,14 @@ import {
 } from 'rxjs'
 import { smoothen } from '../rx/smoothen.js'
 import { memoizeLru } from '../util/memoizeLru.js'
+import {
+  type HydrogenState,
+  hydrogenStateKey,
+  isFineStructure,
+  isSameHydrogenState,
+} from './fineStructure.js'
 import { type OrbitalShapeOptions, orbitalShape } from './orbitalShape.js'
 import type { ParticleUniforms } from './particleUniforms.js'
-import {
-  isSameOrbital,
-  orbitalKey,
-  type QuantumNumbers,
-} from './quantumNumbers.js'
 import { mixShapes, type ShapeExpr } from './shapeMix.js'
 
 const DEFAULT_SHAPE_CACHE_SIZE = 8
@@ -37,6 +38,10 @@ const DEFAULT_SHAPE_CACHE_SIZE = 8
  * whole orbital, not just m, so it isn't recomputed from the in-between shape:
  * each particle's spin ω is blended between the endpoint orbitals alongside
  * the shape (see particleSwarm.ts).
+ *
+ * A fine-structure state's whole flow, orbital part included, comes from its
+ * shape the same way (it isn't a function of one m), so its `m` is 0 and a
+ * morph into or out of one fades the m/ρ² swirl against the blended field.
  */
 export interface OrbitalState {
   readonly shape: ShapeExpr
@@ -51,7 +56,7 @@ export interface MorphConfig {
 }
 
 export interface OrbitalStatesOptions {
-  orbital$: Observable<QuantumNumbers>
+  orbital$: Observable<HydrogenState>
   /** spin projection on the axis (see `spinProjection`); defaults to always 0 */
   spin$?: Observable<number>
   config$: Observable<MorphConfig>
@@ -75,20 +80,20 @@ export function orbitalStates({
   shapeCacheSize = DEFAULT_SHAPE_CACHE_SIZE,
 }: OrbitalStatesOptions): Observable<OrbitalState> {
   const shapeFor = memoizeLru(
-    (orbital: QuantumNumbers) => orbitalShape(orbital, uniforms, shapeOptions),
-    { size: shapeCacheSize, key: orbitalKey },
+    (orbital: HydrogenState) => orbitalShape(orbital, uniforms, shapeOptions),
+    { size: shapeCacheSize, key: hydrogenStateKey },
   )
   const toTargetState = ([orbital, spin]: [
-    QuantumNumbers,
+    HydrogenState,
     number,
   ]): OrbitalState => ({
     shape: shapeFor(orbital),
-    m: orbital.m,
+    m: isFineStructure(orbital) ? 0 : orbital.m,
     spin,
   })
   // replayed so each morph pipeline (one per config) starts from the latest target
   const target$ = combineLatest([
-    orbital$.pipe(distinctUntilChanged(isSameOrbital)),
+    orbital$.pipe(distinctUntilChanged(isSameHydrogenState)),
     spin$.pipe(distinctUntilChanged()),
   ]).pipe(map(toTargetState), shareReplay({ bufferSize: 1, refCount: true }))
 

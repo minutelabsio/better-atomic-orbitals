@@ -1,6 +1,9 @@
-import type {
-  OrbitalShape,
-  SphericalShape,
+import { fineStructureSwirl } from '../../orbital/fineStructureSwirl.js'
+import {
+  isFineStructureShape,
+  isPlainOrbitalShape,
+  type OrbitalShape,
+  type SphericalShape,
 } from '../../orbital/orbitalShape.js'
 import type { OrbitalState } from '../../orbital/orbitalTransition.js'
 import {
@@ -70,9 +73,20 @@ export function createParticleSwarm({
 }: ParticleSwarmOptions): ParticleSwarm {
   const uniforms = drawParticleUniforms(count, rng)
   const evaluateShape = createShapeEvaluator(count)
+  const noSwirl = new Float32Array(count)
   const evaluateSpinSwirl = createFieldEvaluator(
     count,
-    memoizeSpinSwirl(omegaSoftening),
+    memoizeShapeField((shape) =>
+      isPlainOrbitalShape(shape) ? spinUpSwirl(shape, omegaSoftening) : noSwirl,
+    ),
+  )
+  const evaluateFineStructureSwirl = createFieldEvaluator(
+    count,
+    memoizeShapeField((shape) =>
+      isFineStructureShape(shape)
+        ? fineStructureSwirl(shape, omegaSoftening)
+        : noSwirl,
+    ),
   )
   const motion: SwarmMotion = {
     count,
@@ -88,7 +102,8 @@ export function createParticleSwarm({
     setOrbitalState({ shape, m, spin }) {
       placeOnShape(motion, evaluateShape(shape))
       setSwirl(motion, m, omegaSoftening)
-      if (spin !== 0) addSpinSwirl(motion, spin, evaluateSpinSwirl(shape))
+      if (spin !== 0) addSwirl(motion, spin, evaluateSpinSwirl(shape))
+      addSwirl(motion, 1, evaluateFineStructureSwirl(shape))
     },
     advance(speedScale) {
       spin(motion, speedScale)
@@ -100,20 +115,21 @@ export function createParticleSwarm({
 }
 
 /**
- * The spin-up swirl of each orbital shape, computed the first time spin is on.
- * Keyed by the shape's `r` array rather than the shape: intween clones the
- * shape object as it tweens, but passes its typed arrays through untouched.
+ * A per-particle field of each orbital shape (such as the spin-up swirl),
+ * computed the first time it's asked for. Keyed by the shape's `r` array
+ * rather than the shape: intween clones the shape object as it tweens, but
+ * passes its typed arrays through untouched.
  */
-function memoizeSpinSwirl(
-  softening: number,
+function memoizeShapeField(
+  fieldOf: (shape: OrbitalShape) => ParticleField,
 ): (shape: OrbitalShape) => ParticleField {
-  const cache = new WeakMap<ArrayLike<number>, Float32Array>()
+  const cache = new WeakMap<ArrayLike<number>, ParticleField>()
   return (shape) => {
     const cached = cache.get(shape.r)
     if (cached) return cached
-    const swirl = spinUpSwirl(shape, softening)
-    cache.set(shape.r, swirl)
-    return swirl
+    const field = fieldOf(shape)
+    cache.set(shape.r, field)
+    return field
   }
 }
 
@@ -143,14 +159,14 @@ function setSwirl(
   }
 }
 
-/** ω += spin × (spin-up spin-current ω), per particle. */
-function addSpinSwirl(
+/** ω += scale × swirl, per particle (e.g. spin × the spin-up spin term). */
+function addSwirl(
   { count, omega }: SwarmMotion,
-  spin: number,
-  spinUpOmega: ParticleField,
+  scale: number,
+  swirl: ParticleField,
 ): void {
   for (let i = 0; i < count; i += 1) {
-    omega[i]! += spin * spinUpOmega[i]!
+    omega[i]! += scale * swirl[i]!
   }
 }
 

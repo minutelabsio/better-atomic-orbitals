@@ -83,6 +83,15 @@ export function createFieldEvaluator(
   return (expr) => resolve(expr, 0, 'from')
 }
 
+/**
+ * The orbital a shape expression is closest to: the nearer end of each mix.
+ * For things that can't be blended and so switch halfway through a morph.
+ */
+export function dominantShape(expr: ShapeExpr): OrbitalShape {
+  if (expr.kind === 'orbital') return expr
+  return dominantShape(expr.k < 0.5 ? expr.from : expr.to)
+}
+
 function createBufferPool(
   count: number,
 ): (depth: number, side: Side) => Float32Array {

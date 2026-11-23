@@ -1,5 +1,6 @@
 import { logAmplitudeGradient } from './logAmplitudeGradient.js'
 import type { OrbitalShape } from './orbitalShape.js'
+import type { QuantumNumbers } from './quantumNumbers.js'
 import { axialSpinCurrentOmega, SPIN_UP } from './spinCurrent.js'
 
 /**
@@ -13,7 +14,7 @@ import { axialSpinCurrentOmega, SPIN_UP } from './spinCurrent.js'
  * term's -|m|/(ρ² + ε) cancels m/(ρ² + ε) exactly, as it does unsoftened.
  */
 export function spinUpSwirl(
-  { orbital, bohrRadius, r, polar }: OrbitalShape,
+  { orbital, bohrRadius, r, polar }: OrbitalShape<QuantumNumbers>,
   softening: number,
 ): Float32Array {
   const gradientAt = logAmplitudeGradient(orbital, { bohrRadius, softening })

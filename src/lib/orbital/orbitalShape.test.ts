@@ -32,4 +32,21 @@ describe('orbitalShape', () => {
     )
     expect(isNonDecreasing).toBe(true)
   })
+
+  it('samples a j = ½ state like an s state: polar angle uniform in cos θ', () => {
+    const p = orbitalShape({ n: 2, l: 1, j: 0.5, mj: 0.5 }, uniforms)
+    const s = orbitalShape({ n: 2, l: 0, m: 0 }, uniforms)
+    for (let i = 0; i < COUNT; i += 7) {
+      expect(p.polar[i]).toBeCloseTo(s.polar[i]!, 2)
+    }
+  })
+
+  it('samples a stretched fine-structure state like its plain orbital', () => {
+    const fine = orbitalShape({ n: 3, l: 2, j: 2.5, mj: -2.5 }, uniforms)
+    const plain = orbitalShape({ n: 3, l: 2, m: -2 }, uniforms)
+    for (let i = 0; i < COUNT; i += 7) {
+      expect(fine.r[i]).toBe(plain.r[i])
+      expect(fine.polar[i]).toBeCloseTo(plain.polar[i]!, 5)
+    }
+  })
 })

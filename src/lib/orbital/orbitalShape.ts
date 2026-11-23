@@ -1,4 +1,10 @@
 import { angularDensity } from './angularDensity.js'
+import {
+  type FineStructureNumbers,
+  type HydrogenState,
+  isFineStructure,
+} from './fineStructure.js'
+import { fineStructureAngularDensity } from './fineStructureDensity.js'
 import { makeInverseCdfSampler } from './inverseCdfSampler.js'
 import type { ParticleUniforms } from './particleUniforms.js'
 import type { QuantumNumbers } from './quantumNumbers.js'
@@ -24,9 +30,11 @@ export interface SphericalShape {
  * plain objects and arrays but passes typed arrays through by reference, so
  * shapes travel through a tween cheaply and intact.
  */
-export interface OrbitalShape extends SphericalShape {
+export interface OrbitalShape<State extends HydrogenState = HydrogenState>
+  extends SphericalShape {
   readonly kind: 'orbital'
-  readonly orbital: QuantumNumbers
+  /** an |n l m⟩ orbital or a fine-structure state |n l j m_j⟩ */
+  readonly orbital: State
   /** ⟨r⟩ in world units */
   readonly meanRadius: number
   /**
@@ -49,12 +57,12 @@ export interface OrbitalShapeOptions {
  * their new places. Fitting to the exact radial quantile (not an empirical
  * percentile) keeps the result deterministic.
  */
-export function orbitalShape(
-  orbital: QuantumNumbers,
+export function orbitalShape<State extends HydrogenState>(
+  orbital: State,
   uniforms: ParticleUniforms,
   { clusterRadius = 1.4, fitPercentile = 0.99 }: OrbitalShapeOptions = {},
-): OrbitalShape {
-  const { n, l, m } = orbital
+): OrbitalShape<State> {
+  const { n, l } = orbital
   const meanRadiusAtomic = (3 * n * n - l * (l + 1)) / 2
   const radialQuantile = makeInverseCdfSampler(
     radialDensity(n, l),
@@ -63,7 +71,7 @@ export function orbitalShape(
     RADIAL_TABLE_SIZE,
   )
   const polarQuantile = makeInverseCdfSampler(
-    angularDensity(l, m),
+    polarDensityOf(orbital),
     0,
     Math.PI,
     POLAR_TABLE_SIZE,
@@ -81,4 +89,23 @@ export function orbitalShape(
     meanRadius: meanRadiusAtomic * scale,
     bohrRadius: scale,
   }
+}
+
+/** |Θ|² sin θ of either kind of state; the radial density is the same for both. */
+function polarDensityOf(state: HydrogenState): (polar: number) => number {
+  return isFineStructure(state)
+    ? fineStructureAngularDensity(state)
+    : angularDensity(state.l, state.m)
+}
+
+export function isPlainOrbitalShape(
+  shape: OrbitalShape,
+): shape is OrbitalShape<QuantumNumbers> {
+  return !isFineStructure(shape.orbital)
+}
+
+export function isFineStructureShape(
+  shape: OrbitalShape,
+): shape is OrbitalShape<FineStructureNumbers> {
+  return isFineStructure(shape.orbital)
 }

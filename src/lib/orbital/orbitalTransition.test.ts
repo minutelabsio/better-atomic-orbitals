@@ -1,19 +1,19 @@
 import { BehaviorSubject } from 'rxjs'
 import { describe, expect, it } from 'vitest'
 import { seededRng } from './__fixtures__/seededRng.js'
+import type { HydrogenState } from './fineStructure.js'
 import {
   type MorphConfig,
   type OrbitalState,
   orbitalStates,
 } from './orbitalTransition.js'
 import { drawParticleUniforms } from './particleUniforms.js'
-import type { QuantumNumbers } from './quantumNumbers.js'
 
 const uniforms = drawParticleUniforms(500, seededRng(1))
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-function morphHarness(initial: QuantumNumbers, config: MorphConfig) {
-  const orbital$ = new BehaviorSubject(initial)
+function morphHarness(initial: HydrogenState, config: MorphConfig) {
+  const orbital$ = new BehaviorSubject<HydrogenState>(initial)
   const spin$ = new BehaviorSubject(0)
   const config$ = new BehaviorSubject(config)
   const states: OrbitalState[] = []
@@ -132,6 +132,25 @@ describe('orbitalStates', () => {
       config$: new BehaviorSubject({ duration: 100, easing: 'linear' }),
       uniforms,
     }).subscribe((state) => expect(state.spin).toBe(0))
+    subscription.unsubscribe()
+  })
+
+  it('morphs into a fine-structure state, fading the m/ρ² swirl out', async () => {
+    const { orbital$, states, subscription } = morphHarness(
+      { n: 2, l: 1, m: 1 },
+      { duration: 120, easing: 'linear' },
+    )
+    orbital$.next({ n: 2, l: 1, j: 0.5, mj: 0.5 })
+    await sleep(260)
+    const end = states.at(-1)!
+    // its whole flow comes from the shape's own field, not from m
+    expect(end.m).toBe(0)
+    expect(end.shape.kind === 'orbital' && end.shape.orbital).toEqual({
+      n: 2,
+      l: 1,
+      j: 0.5,
+      mj: 0.5,
+    })
     subscription.unsubscribe()
   })
 })
