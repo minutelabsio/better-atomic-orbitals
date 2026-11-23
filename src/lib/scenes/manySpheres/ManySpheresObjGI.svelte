@@ -4,7 +4,11 @@ import { getContext, onMount } from 'svelte'
 import * as THREE from 'three'
 import type { HydrogenState } from '../../orbital/fineStructure.js'
 import { orbitalStates } from '../../orbital/orbitalTransition.js'
-import { type SpinSetting, spinProjection } from '../../orbital/spinSetting.js'
+import {
+  type SpinSetting,
+  spinProjection,
+  unpolarizedWeight,
+} from '../../orbital/spinSetting.js'
 import { observe } from '../../rx/observe.svelte.js'
 import vertexShader from './manySpheres.vert.glsl'
 import displayShader from './manySpheresDisplay.frag.glsl'
@@ -70,6 +74,7 @@ let {
 // switch orbitals by morphing in place (no remount)
 const orbital$ = observe(() => orbital)
 const spin$ = observe(() => spinProjection(spin))
+const unpolarized$ = observe(() => unpolarizedWeight(spin))
 const morphConfig$ = observe(() => ({
   duration: morphDuration,
   easing: morphEasing,
@@ -107,6 +112,7 @@ onMount(() => {
   const orbitalStateSub = orbitalStates({
     orbital$,
     spin$,
+    unpolarized$,
     config$: morphConfig$,
     uniforms: grid.uniforms,
   }).subscribe((state) => grid.setOrbitalState(state))

@@ -4,6 +4,7 @@ import { isFineStructureShape, type OrbitalShape } from './orbitalShape.js'
 import type { OrbitalState } from './orbitalTransition.js'
 import { dominantShape, type ParticleField } from './shapeMix.js'
 import { spinAlongAxis } from './spinAlongAxis.js'
+import { unpolarizedSpinLabels } from './unpolarizedSpin.js'
 
 /**
  * Which per-particle spin to show: `measured` is each particle's ±1 outcome
@@ -24,9 +25,10 @@ export interface SpinFieldResolverOptions {
  * orbital with the spin setting off.
  *
  * A plain orbital with spin on is a pure spin-up or spin-down state: +1 or -1
- * for every particle, whichever field. A spin doesn't blend, so mid-morph
- * this snaps to whichever end the morph is nearer (`dominantShape`, and the
- * spin setting rounded). The same array comes back until the answer changes,
+ * for every particle, whichever field; with spin "both" each particle has its
+ * own definite spin (`unpolarizedSpinLabels`), again for either field. A spin
+ * doesn't blend, so mid-morph this snaps to whichever end the morph is nearer
+ * (`dominantShape`, and the spin settings rounded). The same array comes back until the answer changes,
  * so callers can compare by identity to skip re-uploads.
  */
 export function createSpinFieldResolver({
@@ -41,6 +43,7 @@ export function createSpinFieldResolver({
     0: undefined,
     [-1]: new Float32Array(count).fill(-1),
   }
+  const unpolarizedLabels = unpolarizedSpinLabels(uSpin)
   const FIELDS: Record<
     SpinField,
     (shape: OrbitalShape<FineStructureNumbers>) => Float32Array
@@ -63,9 +66,10 @@ export function createSpinFieldResolver({
     return values
   }
 
-  return ({ shape, spin }, field) => {
+  return ({ shape, spin, unpolarized = 0 }, field) => {
     const nearest = dominantShape(shape)
     if (isFineStructureShape(nearest)) return fineStructureField(nearest, field)
+    if (Math.round(unpolarized) === 1) return unpolarizedLabels
     return plainSpinFields[Math.round(spin) || 0]
   }
 }

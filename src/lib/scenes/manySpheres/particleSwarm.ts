@@ -16,6 +16,7 @@ import {
   type ParticleField,
 } from '../../orbital/shapeMix.js'
 import { spinUpSwirl } from '../../orbital/spinSwirl.js'
+import { unpolarizedSpinLabels } from '../../orbital/unpolarizedSpin.js'
 import { probabilityCurrentOmega } from '../../orbital/velocity.js'
 import { cutawayFeatherScale } from './cutaway.js'
 
@@ -87,6 +88,7 @@ export function createParticleSwarm({
   const uniforms = drawParticleUniforms(count, rng)
   const evaluateShape = createShapeEvaluator(count)
   const noSwirl = new Float32Array(count)
+  const spinLabels = unpolarizedSpinLabels(uniforms.uSpin)
   const evaluateSpinSwirl = createFieldEvaluator(
     count,
     memoizeShapeField((shape) =>
@@ -112,10 +114,18 @@ export function createParticleSwarm({
 
   return {
     uniforms,
-    setOrbitalState({ shape, m, spin }) {
+    setOrbitalState({ shape, m, spin, unpolarized = 0 }) {
       placeOnShape(motion, evaluateShape(shape))
       setSwirl(motion, m, omegaSoftening)
       if (spin !== 0) addSwirl(motion, spin, evaluateSpinSwirl(shape))
+      if (unpolarized !== 0) {
+        addLabelledSwirl(
+          motion,
+          unpolarized,
+          spinLabels,
+          evaluateSpinSwirl(shape),
+        )
+      }
       addSwirl(motion, 1, evaluateFineStructureSwirl(shape))
     },
     advance(speedScale) {
@@ -180,6 +190,18 @@ function addSwirl(
 ): void {
   for (let i = 0; i < count; i += 1) {
     omega[i]! += scale * swirl[i]!
+  }
+}
+
+/** ω += scale × label × swirl, per particle: each particle's own spin (±1). */
+function addLabelledSwirl(
+  { count, omega }: SwarmMotion,
+  scale: number,
+  labels: ParticleField,
+  swirl: ParticleField,
+): void {
+  for (let i = 0; i < count; i += 1) {
+    omega[i]! += scale * labels[i]! * swirl[i]!
   }
 }
 

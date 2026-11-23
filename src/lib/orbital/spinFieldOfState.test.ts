@@ -6,6 +6,7 @@ import { drawParticleUniforms } from './particleUniforms.js'
 import { mixShapes } from './shapeMix.js'
 import { spinAlongAxis } from './spinAlongAxis.js'
 import { createSpinFieldResolver } from './spinFieldOfState.js'
+import { unpolarizedSpinLabels } from './unpolarizedSpin.js'
 
 const COUNT = 200
 const uniforms = drawParticleUniforms(COUNT, seededRng(4))
@@ -32,6 +33,19 @@ describe('createSpinFieldResolver', () => {
         Array.from(resolve({ shape: plain, m: 1, spin: -1 }, field)!),
       ).toEqual(new Array(COUNT).fill(-1))
     }
+  })
+
+  it('gives each particle its own fixed label for a plain orbital with spin both', () => {
+    const resolve = newResolver()
+    const labels = Array.from(unpolarizedSpinLabels(uniforms.uSpin))
+    for (const field of ['measured', 'average'] as const) {
+      const state = { shape: plain, m: 1, spin: 0, unpolarized: 1 }
+      expect(Array.from(resolve(state, field)!)).toEqual(labels)
+    }
+    // halfway through fading "both" out, it snaps to the nearer end
+    expect(
+      resolve({ shape: plain, m: 1, spin: 0, unpolarized: 0.4 }, 'measured'),
+    ).toBeUndefined()
   })
 
   it('reads a fine-structure state’s fields, and returns the same arrays again', () => {

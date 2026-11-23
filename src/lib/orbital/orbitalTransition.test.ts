@@ -153,4 +153,26 @@ describe('orbitalStates', () => {
     })
     subscription.unsubscribe()
   })
+
+  it('fades in each particle’s own spin label (spin both) without moving the particles', async () => {
+    const orbital$ = new BehaviorSubject<HydrogenState>({ n: 1, l: 0, m: 0 })
+    const unpolarized$ = new BehaviorSubject(0)
+    const states: OrbitalState[] = []
+    const subscription = orbitalStates({
+      orbital$,
+      unpolarized$,
+      config$: new BehaviorSubject({ duration: 120, easing: 'linear' }),
+      uniforms,
+    }).subscribe((state) => states.push(state))
+    expect(states[0]!.unpolarized).toBe(0)
+    unpolarized$.next(1)
+    await sleep(60)
+    const mid = states.at(-1)!.unpolarized!
+    expect(mid).toBeGreaterThan(0)
+    expect(mid).toBeLessThan(1)
+    await sleep(200)
+    expect(states.at(-1)!.unpolarized).toBe(1)
+    expect(states.at(-1)!.spin).toBe(0)
+    subscription.unsubscribe()
+  })
 })
