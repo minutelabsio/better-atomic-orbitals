@@ -165,12 +165,17 @@ Decisions:
   term keeps following the tweened m as before. Mid-morph the 2p(+1) cancellation is
   therefore not exact. The spin setting itself is part of the tweened `OrbitalState`, so
   switching it fades the term in or out over the morph duration.
-- **Axis handedness.** Particles are placed at (ρ cosφ, r cosθ, ρ sinφ), which is a
-  mirror image of a right-handed frame about +Y: positive m circulates right-handedly
-  about **−Y**. "Spin up" means s parallel to the axis positive m circulates about, so in
-  world coordinates it points along −Y. |ψ|² is symmetric under y → −y, so this only
-  matters for labels, and for the tilted-axis follow-on, which must express s in the
-  same right-handed frame as the gradient.
+- **Axis handedness.** Particles are placed at (ρ cosφ, r cosθ, −ρ sinφ)
+  (`writeSpheres` in `particleSwarm.ts`), so (ê_ρ, ê_φ, +Y) is right-handed and
+  increasing φ is a positive rotation about **+Y**: positive m circulates about +Y,
+  and spin up (s parallel to that axis) points along world +Y.
+  `particleSwarm.test.ts` pins this from the written sphere positions (r × v along +Y
+  for m > 0, and for the 1s spin-up term alone). Until this fix the placement was
+  (ρ cosφ, r cosθ, ρ sinφ), a mirror image in which both pointed along −Y. The visible
+  side effect of the fix: positive-m orbitals now swirl the other way on screen (seen
+  from the default front camera, the near side moves right, toward +X, where it used to
+  move left). |ψ|² is symmetric under y → −y, so the shapes don't change. A tilted spin
+  axis must give s in this same right-handed world frame.
 
 Follow-ons this is shaped for: spin–orbit fine-structure spinors (built, §2c), and a
 tilted/precessing spin axis (call `spinCurrentVelocity` with the full s; the flow stops

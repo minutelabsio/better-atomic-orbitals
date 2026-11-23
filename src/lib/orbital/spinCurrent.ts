@@ -36,7 +36,8 @@ export function spinCurrentVelocity(gradLnAmplitude: Vec3, spin: Vec3): Vec3 {
  *   ω_spin = -spinProjection · ∂ρ ln|ψ| / ρ
  *
  * evaluated in the local right-handed frame (ê_ρ, ê_φ, ê_axis), where φ
- * increases the way positive m circulates. On the axis itself (ρ = 0) the
+ * increases the way positive m circulates (ê_axis is world +Y, see
+ * `particleSwarm.ts`). On the axis itself (ρ = 0) the
  * point doesn't move whatever ω is, so this returns 0 there.
  */
 export function axialSpinCurrentOmega(

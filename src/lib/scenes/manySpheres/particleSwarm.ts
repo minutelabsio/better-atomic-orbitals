@@ -75,6 +75,9 @@ interface SwarmMotion {
  * The particles and their motion. Motion is a rigid spin about the Y axis, so
  * it's stored in cylindrical coordinates (ρ, φ, y); orbital shapes arrive in
  * spherical and spheres leave in cartesian.
+ *
+ * The frame is right-handed about +Y: increasing φ is a positive rotation
+ * about +Y, so positive m and spin up both point along world +Y.
  */
 export function createParticleSwarm({
   count,
@@ -198,12 +201,13 @@ function writeSpheres(
   }: SphereStyle,
 ): void {
   for (let i = 0; i < count; i += 1) {
+    // (ê_ρ, ê_φ, +Y) right-handed: φ turns +Z toward +X, hence z = -ρ sin φ
     const x = rho[i]! * Math.cos(phi[i]!)
     const shift = separation
       ? separation.distance * separation.direction[i]!
       : 0
     const y = height[i]! + shift
-    const z = rho[i]! * Math.sin(phi[i]!)
+    const z = -rho[i]! * Math.sin(phi[i]!)
     const radius = sphereRadius * (1 + radiusVariation * radiusJitter[i]!)
     const feather = cutaway ? cutawayFeatherScale(y, z, cutawayFeather) : 1
     const o = i * SPHERE_STRIDE
