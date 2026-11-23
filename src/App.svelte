@@ -32,9 +32,7 @@ let settings = $state(defaultDevSettings())
           cutawayFeather={settings.cutawayFeather}
           sphereRadius={settings.radius}
           radiusVariation={settings.radiusVariation}
-          n={orbital.n}
-          l={orbital.l}
-          m={orbital.m}
+          {orbital}
           {spin}
           speed={settings.speed}
           morphDuration={settings.morphDuration}
@@ -53,9 +51,7 @@ let settings = $state(defaultDevSettings())
           cutawayFeather={settings.cutawayFeather}
           sphereRadius={settings.radius}
           radiusVariation={settings.radiusVariation}
-          n={orbital.n}
-          l={orbital.l}
-          m={orbital.m}
+          {orbital}
           {spin}
           speed={settings.speed}
           morphDuration={settings.morphDuration}

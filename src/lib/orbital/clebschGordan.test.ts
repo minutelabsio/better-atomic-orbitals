@@ -1,16 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { spinorComponents } from './clebschGordan.js'
+import { allFineStructureStates } from './fineStructureCatalog.js'
 
-/** Every (l, j, m_j) with l ≤ 4. */
-function* fineStructureAngles() {
-  for (let l = 0; l <= 4; l += 1) {
-    for (const j of l === 0 ? [0.5] : [l - 0.5, l + 0.5]) {
-      for (let mj = -j; mj <= j; mj += 1) {
-        yield { l, j, mj }
-      }
-    }
-  }
-}
+/** Every (n, l, j, m_j) with l ≤ 4. */
+const fineStructureAngles = () => allFineStructureStates(5)
 
 describe('spinorComponents', () => {
   it('is normalized for every state', () => {

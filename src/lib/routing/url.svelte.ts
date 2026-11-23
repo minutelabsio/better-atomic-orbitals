@@ -37,6 +37,8 @@ export function setParam(
   const next = new URL(window.location.href)
   if (value === null) next.searchParams.delete(name)
   else next.searchParams.set(name, value)
+  // searchParams escapes '/', which is legal in a query; keep `2p3/2m1/2` readable
+  next.search = next.searchParams.toString().replaceAll('%2F', '/')
   if (mode === 'push') window.history.pushState(null, '', next)
   else window.history.replaceState(null, '', next)
   window.dispatchEvent(new Event(URL_CHANGE))

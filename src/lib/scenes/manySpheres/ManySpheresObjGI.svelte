@@ -2,6 +2,7 @@
 import type { Easing } from 'intween'
 import { getContext, onMount } from 'svelte'
 import * as THREE from 'three'
+import type { HydrogenState } from '../../orbital/fineStructure.js'
 import { orbitalStates } from '../../orbital/orbitalTransition.js'
 import { type SpinSetting, spinProjection } from '../../orbital/spinSetting.js'
 import { observe } from '../../rx/observe.svelte.js'
@@ -31,9 +32,7 @@ let {
   cutawayFeather = 0,
   sphereRadius = 0.012,
   radiusVariation = 0,
-  n = 1,
-  l = 0,
-  m = 0,
+  orbital = { n: 1, l: 0, m: 0 },
   spin = 'off',
   speed = 0.001,
   morphDuration = 1500,
@@ -50,9 +49,8 @@ let {
   cutawayFeather?: number
   sphereRadius?: number
   radiusVariation?: number
-  n?: number
-  l?: number
-  m?: number
+  /** an |n l m⟩ orbital or a fine-structure state */
+  orbital?: HydrogenState
   spin?: SpinSetting
   speed?: number
   /** orbital-to-orbital morph duration, ms */
@@ -61,7 +59,7 @@ let {
 } = $props()
 
 // switch orbitals by morphing in place (no remount)
-const orbital$ = observe(() => ({ n, l, m }))
+const orbital$ = observe(() => orbital)
 const spin$ = observe(() => spinProjection(spin))
 const morphConfig$ = observe(() => ({
   duration: morphDuration,

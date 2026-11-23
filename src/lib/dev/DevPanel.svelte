@@ -7,7 +7,7 @@ import {
   Pane,
   Slider,
 } from 'svelte-tweakpane-ui'
-import { formatOrbitalNotation } from '../orbital/orbitalNotation'
+import { formatHydrogenStateNotation } from '../orbital/hydrogenStateNotation'
 import { ORBITAL_PARAM } from '../routing/orbitalParam'
 import { currentOrbital } from '../routing/orbitalRoute.svelte'
 import { currentSpin, selectSpin } from '../routing/spinRoute.svelte'
@@ -43,7 +43,7 @@ const percent = (v: number) => `±${Math.round(v * 100)}%`
 >
   <Folder title="Orbital">
     <List label="orbital" options={orbitalOptions} bind:value={
-        () => formatOrbitalNotation(currentOrbital()),
+        () => formatHydrogenStateNotation(currentOrbital()),
         (notation) => setParam(ORBITAL_PARAM, notation)
       } />
     <List label="spin" options={spinOptions} bind:value={currentSpin, selectSpin} />
