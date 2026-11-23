@@ -7,10 +7,20 @@ import {
 
 describe('defaultSphereColoring', () => {
   it('colors fine-structure states by measured spin and plain orbitals plainly', () => {
-    expect(defaultSphereColoring({ n: 2, l: 1, j: 0.5, mj: 0.5 })).toBe(
+    const fine = { n: 2, l: 1, j: 0.5, mj: 0.5 }
+    expect(defaultSphereColoring({ orbital: fine, spin: 'off' })).toBe(
       'measured',
     )
-    expect(defaultSphereColoring({ n: 2, l: 1, m: 1 })).toBe('plain')
+    const plain = { n: 2, l: 1, m: 1 }
+    for (const spin of ['off', 'up', 'down'] as const) {
+      expect(defaultSphereColoring({ orbital: plain, spin })).toBe('plain')
+    }
+  })
+
+  it('colors a plain orbital with spin both by each sphere’s spin', () => {
+    expect(
+      defaultSphereColoring({ orbital: { n: 1, l: 0, m: 0 }, spin: 'both' }),
+    ).toBe('measured')
   })
 })
 

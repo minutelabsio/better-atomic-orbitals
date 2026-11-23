@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { SPHERE_COLORINGS } from '../scenes/manySpheres/sphereColoring'
 import { coloringFromParam, coloringToParam } from './colorParam'
 
-const fine = { n: 2, l: 1, j: 0.5, mj: 0.5 }
-const plain = { n: 2, l: 1, m: 1 }
+const fine = { orbital: { n: 2, l: 1, j: 0.5, mj: 0.5 }, spin: 'off' } as const
+const plain = { orbital: { n: 2, l: 1, m: 1 }, spin: 'off' } as const
+const bothSpins = { orbital: { n: 1, l: 0, m: 0 }, spin: 'both' } as const
 
 describe('coloringFromParam', () => {
   it('reads every coloring whatever the state', () => {
-    for (const state of [fine, plain]) {
+    for (const state of [fine, plain, bothSpins]) {
       for (const coloring of SPHERE_COLORINGS) {
         expect(coloringFromParam(coloring, state)).toBe(coloring)
       }
@@ -18,6 +19,7 @@ describe('coloringFromParam', () => {
     for (const text of [null, '', 'rainbow', 'spin', 'Measured']) {
       expect(coloringFromParam(text, fine)).toBe('measured')
       expect(coloringFromParam(text, plain)).toBe('plain')
+      expect(coloringFromParam(text, bothSpins)).toBe('measured')
     }
   })
 })
@@ -32,7 +34,7 @@ describe('coloringToParam', () => {
   })
 
   it('round-trips through coloringFromParam', () => {
-    for (const state of [fine, plain]) {
+    for (const state of [fine, plain, bothSpins]) {
       for (const coloring of SPHERE_COLORINGS) {
         expect(coloringFromParam(coloringToParam(coloring, state), state)).toBe(
           coloring,

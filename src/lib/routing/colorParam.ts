@@ -1,5 +1,5 @@
-import type { HydrogenState } from '../orbital/fineStructure'
 import {
+  type ColoringContext,
   defaultSphereColoring,
   isSphereColoring,
   type SphereColoring,
@@ -8,25 +8,25 @@ import {
 /**
  * Query param holding the sphere coloring: `?color=measured`, `average` or
  * `plain` (see sphereColoring.ts). Absent means the state's default
- * (`defaultSphereColoring`), so a bare `?o=2p1/2m1/2` shows measured spin
- * colors and `?o=2p1` doesn't.
+ * (`defaultSphereColoring`), so a bare `?o=2p1/2m1/2` or `?o=1s&spin=both`
+ * shows spin colors and `?o=2p1` doesn't.
  */
 export const COLOR_PARAM = 'color'
 
-/** The coloring for `state`: the param's if it names one, else the state's default. */
+/** The coloring: the param's if it names one, else the default for `context`. */
 export function coloringFromParam(
   text: string | null,
-  state: HydrogenState,
+  context: ColoringContext,
 ): SphereColoring {
   return text !== null && isSphereColoring(text)
     ? text
-    : defaultSphereColoring(state)
+    : defaultSphereColoring(context)
 }
 
-/** The param value for a coloring; the state's default is left out of the URL. */
+/** The param value for a coloring; the default for `context` is left out of the URL. */
 export function coloringToParam(
   coloring: SphereColoring,
-  state: HydrogenState,
+  context: ColoringContext,
 ): string | null {
-  return coloring === defaultSphereColoring(state) ? null : coloring
+  return coloring === defaultSphereColoring(context) ? null : coloring
 }
