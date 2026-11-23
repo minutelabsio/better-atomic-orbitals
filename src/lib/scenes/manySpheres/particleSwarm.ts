@@ -1,10 +1,18 @@
-import type { SphericalShape } from '../../orbital/orbitalShape.js'
+import type {
+  OrbitalShape,
+  SphericalShape,
+} from '../../orbital/orbitalShape.js'
 import type { OrbitalState } from '../../orbital/orbitalTransition.js'
 import {
   drawParticleUniforms,
   type ParticleUniforms,
 } from '../../orbital/particleUniforms.js'
-import { createShapeEvaluator } from '../../orbital/shapeMix.js'
+import {
+  createFieldEvaluator,
+  createShapeEvaluator,
+  type ParticleField,
+} from '../../orbital/shapeMix.js'
+import { spinUpSwirl } from '../../orbital/spinSwirl.js'
 import { probabilityCurrentOmega } from '../../orbital/velocity.js'
 import { cutawayFeatherScale } from './cutaway.js'
 
@@ -30,7 +38,7 @@ export interface SphereStyle {
 export interface ParticleSwarm {
   /** per-particle random numbers, fixed for life; every orbital shape is computed from these */
   readonly uniforms: ParticleUniforms
-  /** move the particles to `state` and set their swirl from its m */
+  /** move the particles to `state` and set their swirl from its m and spin */
   setOrbitalState(state: OrbitalState): void
   /** spin every particle about the Y axis by its own angular velocity × speedScale */
   advance(speedScale: number): void
@@ -62,6 +70,10 @@ export function createParticleSwarm({
 }: ParticleSwarmOptions): ParticleSwarm {
   const uniforms = drawParticleUniforms(count, rng)
   const evaluateShape = createShapeEvaluator(count)
+  const evaluateSpinSwirl = createFieldEvaluator(
+    count,
+    memoizeSpinSwirl(omegaSoftening),
+  )
   const motion: SwarmMotion = {
     count,
     rho: new Float32Array(count),
@@ -73,9 +85,10 @@ export function createParticleSwarm({
 
   return {
     uniforms,
-    setOrbitalState({ shape, m }) {
+    setOrbitalState({ shape, m, spin }) {
       placeOnShape(motion, evaluateShape(shape))
       setSwirl(motion, m, omegaSoftening)
+      if (spin !== 0) addSpinSwirl(motion, spin, evaluateSpinSwirl(shape))
     },
     advance(speedScale) {
       spin(motion, speedScale)
@@ -83,6 +96,24 @@ export function createParticleSwarm({
     writeSpheres(out, style) {
       writeSpheres(motion, out, style)
     },
+  }
+}
+
+/**
+ * The spin-up swirl of each orbital shape, computed the first time spin is on.
+ * Keyed by the shape's `r` array rather than the shape: intween clones the
+ * shape object as it tweens, but passes its typed arrays through untouched.
+ */
+function memoizeSpinSwirl(
+  softening: number,
+): (shape: OrbitalShape) => ParticleField {
+  const cache = new WeakMap<ArrayLike<number>, Float32Array>()
+  return (shape) => {
+    const cached = cache.get(shape.r)
+    if (cached) return cached
+    const swirl = spinUpSwirl(shape, softening)
+    cache.set(shape.r, swirl)
+    return swirl
   }
 }
 
@@ -109,6 +140,17 @@ function setSwirl(
 ): void {
   for (let i = 0; i < count; i += 1) {
     omega[i] = probabilityCurrentOmega(rho[i]!, m, softening)
+  }
+}
+
+/** ω += spin × (spin-up spin-current ω), per particle. */
+function addSpinSwirl(
+  { count, omega }: SwarmMotion,
+  spin: number,
+  spinUpOmega: ParticleField,
+): void {
+  for (let i = 0; i < count; i += 1) {
+    omega[i]! += spin * spinUpOmega[i]!
   }
 }
 

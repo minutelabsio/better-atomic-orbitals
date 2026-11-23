@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { seededRng } from './__fixtures__/seededRng.js'
 import { orbitalShape } from './orbitalShape.js'
 import { drawParticleUniforms } from './particleUniforms.js'
-import { createShapeEvaluator, mixShapes } from './shapeMix.js'
+import {
+  createFieldEvaluator,
+  createShapeEvaluator,
+  mixShapes,
+} from './shapeMix.js'
 
 const COUNT = 500
 const SAMPLE_STRIDE = 37
@@ -48,6 +52,28 @@ describe('createShapeEvaluator', () => {
       const leftR = (a.r[i]! + b.r[i]!) / 2
       const rightR = (b.r[i]! + c.r[i]!) / 2
       expect(shape.r[i]).toBeCloseTo((leftR + rightR) / 2, 5)
+    }
+  })
+})
+
+describe('createFieldEvaluator', () => {
+  const meanRadiusField = (shape: typeof a) =>
+    new Float32Array(COUNT).fill(shape.meanRadius)
+  const fields = new Map([a, b].map((shape) => [shape, meanRadiusField(shape)]))
+  const evaluateField = createFieldEvaluator(
+    COUNT,
+    (shape) => fields.get(shape)!,
+  )
+
+  it('reads an orbital field in place', () => {
+    expect(evaluateField(a)).toBe(fields.get(a))
+  })
+
+  it('lerps the field through a mix like the shape', () => {
+    const field = evaluateField(mixShapes(a, b, 0.25))
+    const expected = a.meanRadius * 0.75 + b.meanRadius * 0.25
+    for (const i of sampledIndices) {
+      expect(field[i]).toBeCloseTo(expected, 5)
     }
   })
 })

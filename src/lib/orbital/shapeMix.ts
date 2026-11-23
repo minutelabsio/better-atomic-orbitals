@@ -20,10 +20,8 @@ export type ShapeExpr = OrbitalShape | ShapeMix
 
 type Side = 'from' | 'to'
 
-interface ShapeBuffer {
-  r: Float32Array
-  polar: Float32Array
-}
+/** One number per particle, read-only. */
+export type ParticleField = ArrayLike<number>
 
 /** intween interpolator `(from, to, k) => value` for shape expressions. */
 export function mixShapes(
@@ -38,8 +36,8 @@ export function mixShapes(
 
 /**
  * Returns `evaluateShape(expr)`, which resolves a shape expression to
- * per-particle (r, polar). Buffers are owned by the closure and reused, so a
- * result is only valid until the next call.
+ * per-particle (r, polar). A plain shape is returned as is; a mix's result is
+ * only valid until the next call.
  *
  * Interpolating in spherical coordinates moves particles along arcs around the
  * nucleus rather than through it, and because both endpoints come from the
@@ -49,6 +47,24 @@ export function mixShapes(
 export function createShapeEvaluator(
   count: number,
 ): (expr: ShapeExpr) => SphericalShape {
+  const evaluateR = createFieldEvaluator(count, (shape) => shape.r)
+  const evaluatePolar = createFieldEvaluator(count, (shape) => shape.polar)
+  return (expr) => {
+    if (expr.kind === 'orbital') return expr
+    return { r: evaluateR(expr), polar: evaluatePolar(expr) }
+  }
+}
+
+/**
+ * Returns `evaluate(expr)`, which resolves a shape expression to one
+ * per-particle field: `fieldOf` at each orbital, lerped through the mixes the
+ * same way the shape is. Buffers are owned by the closure and reused, so a
+ * mix's result is only valid until the next call.
+ */
+export function createFieldEvaluator(
+  count: number,
+  fieldOf: (shape: OrbitalShape) => ParticleField,
+): (expr: ShapeExpr) => ParticleField {
   const bufferAt = createBufferPool(count)
 
   // A mix's two subtrees are resolved one after the other, so they can share
@@ -57,11 +73,11 @@ export function createShapeEvaluator(
     expr: ShapeExpr,
     depth: number,
     side: Side,
-  ): SphericalShape => {
-    if (expr.kind === 'orbital') return expr
+  ): ParticleField => {
+    if (expr.kind === 'orbital') return fieldOf(expr)
     const from = resolve(expr.from, depth + 1, 'from')
     const to = resolve(expr.to, depth + 1, 'to')
-    return lerpShapes(from, to, expr.k, bufferAt(depth, side))
+    return lerpFields(from, to, expr.k, bufferAt(depth, side))
   }
 
   return (expr) => resolve(expr, 0, 'from')
@@ -69,12 +85,9 @@ export function createShapeEvaluator(
 
 function createBufferPool(
   count: number,
-): (depth: number, side: Side) => ShapeBuffer {
-  const levels: Record<Side, ShapeBuffer>[] = []
-  const allocate = (): ShapeBuffer => ({
-    r: new Float32Array(count),
-    polar: new Float32Array(count),
-  })
+): (depth: number, side: Side) => Float32Array {
+  const levels: Record<Side, Float32Array>[] = []
+  const allocate = () => new Float32Array(count)
   return (depth, side) => {
     levels[depth] ??= { from: allocate(), to: allocate() }
     return levels[depth][side]
@@ -82,15 +95,14 @@ function createBufferPool(
 }
 
 // hot path (every frame, every particle): indexed loop into a reused buffer
-function lerpShapes(
-  a: SphericalShape,
-  b: SphericalShape,
+function lerpFields(
+  a: ParticleField,
+  b: ParticleField,
   k: number,
-  out: ShapeBuffer,
-): SphericalShape {
-  for (let i = 0; i < out.r.length; i += 1) {
-    out.r[i] = a.r[i]! + (b.r[i]! - a.r[i]!) * k
-    out.polar[i] = a.polar[i]! + (b.polar[i]! - a.polar[i]!) * k
+  out: Float32Array,
+): Float32Array {
+  for (let i = 0; i < out.length; i += 1) {
+    out[i] = a[i]! + (b[i]! - a[i]!) * k
   }
   return out
 }

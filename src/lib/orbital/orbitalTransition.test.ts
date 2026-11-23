@@ -14,12 +14,16 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 function morphHarness(initial: QuantumNumbers, config: MorphConfig) {
   const orbital$ = new BehaviorSubject(initial)
+  const spin$ = new BehaviorSubject(0)
   const config$ = new BehaviorSubject(config)
   const states: OrbitalState[] = []
-  const subscription = orbitalStates({ orbital$, config$, uniforms }).subscribe(
-    (state) => states.push(state),
-  )
-  return { orbital$, config$, states, subscription }
+  const subscription = orbitalStates({
+    orbital$,
+    spin$,
+    config$,
+    uniforms,
+  }).subscribe((state) => states.push(state))
+  return { orbital$, spin$, config$, states, subscription }
 }
 
 const largestStepInM = (states: OrbitalState[]) =>
@@ -96,6 +100,38 @@ describe('orbitalStates', () => {
     await sleep(300)
     expect(states.at(-1)!.m).toBe(-1)
     expect(largestStepInM(states)).toBeLessThan(1)
+    subscription.unsubscribe()
+  })
+
+  it('fades the spin in without moving the particles', async () => {
+    const { spin$, states, subscription } = morphHarness(
+      { n: 2, l: 1, m: 1 },
+      { duration: 120, easing: 'linear' },
+    )
+    expect(states[0]!.spin).toBe(0)
+    spin$.next(1)
+    await sleep(60)
+    const mid = states.at(-1)!
+    expect(mid.spin).toBeGreaterThan(0)
+    expect(mid.spin).toBeLessThan(1)
+    expect(mid.m).toBe(1)
+
+    await sleep(200)
+    const end = states.at(-1)!
+    expect(end.spin).toBe(1)
+    // intween clones the shape object; its arrays pass through by reference
+    const shapeArray = (state: OrbitalState) =>
+      state.shape.kind === 'orbital' && state.shape.r
+    expect(shapeArray(end)).toBe(shapeArray(states[0]!))
+    subscription.unsubscribe()
+  })
+
+  it('defaults to no spin', () => {
+    const subscription = orbitalStates({
+      orbital$: new BehaviorSubject({ n: 1, l: 0, m: 0 }),
+      config$: new BehaviorSubject({ duration: 100, easing: 'linear' }),
+      uniforms,
+    }).subscribe((state) => expect(state.spin).toBe(0))
     subscription.unsubscribe()
   })
 })

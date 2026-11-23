@@ -29,6 +29,11 @@ export interface OrbitalShape extends SphericalShape {
   readonly orbital: QuantumNumbers
   /** ⟨r⟩ in world units */
   readonly meanRadius: number
+  /**
+   * The Bohr radius a₀ in world units: the length unit this orbital was scaled
+   * by to fit `clusterRadius`. Each orbital has its own.
+   */
+  readonly bohrRadius: number
 }
 
 export interface OrbitalShapeOptions {
@@ -74,5 +79,6 @@ export function orbitalShape(
     r: Float32Array.from(uniforms.uR, toWorldRadius),
     polar: Float32Array.from(uniforms.uPolar, polarQuantile),
     meanRadius: meanRadiusAtomic * scale,
+    bohrRadius: scale,
   }
 }

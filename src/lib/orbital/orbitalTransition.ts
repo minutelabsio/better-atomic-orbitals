@@ -1,9 +1,11 @@
 import type { Easing } from 'intween'
 import {
+  combineLatest,
   distinctUntilChanged,
   filter,
   map,
   type Observable,
+  of,
   shareReplay,
   startWith,
   switchMap,
@@ -29,10 +31,17 @@ const DEFAULT_SHAPE_CACHE_SIZE = 8
  * ω = m/ρ². Tweening m — rather than each particle's ω — keeps the motion
  * consistent with the shape at every instant: as ρ moves, ω follows; m → −m
  * slows the swirl to a stop and reverses it.
+ *
+ * `spin` is the spin projection on the axis (+1 up, −1 down, 0 off; fractional
+ * mid-transition) that scales the spin-current term. That term depends on the
+ * whole orbital, not just m, so it isn't recomputed from the in-between shape:
+ * each particle's spin ω is blended between the endpoint orbitals alongside
+ * the shape (see particleSwarm.ts).
  */
 export interface OrbitalState {
   readonly shape: ShapeExpr
   readonly m: number
+  readonly spin: number
 }
 
 export interface MorphConfig {
@@ -43,6 +52,8 @@ export interface MorphConfig {
 
 export interface OrbitalStatesOptions {
   orbital$: Observable<QuantumNumbers>
+  /** spin projection on the axis (see `spinProjection`); defaults to always 0 */
+  spin$?: Observable<number>
   config$: Observable<MorphConfig>
   uniforms: ParticleUniforms
   shapeOptions?: OrbitalShapeOptions
@@ -57,6 +68,7 @@ export interface OrbitalStatesOptions {
  */
 export function orbitalStates({
   orbital$,
+  spin$ = of(0),
   config$,
   uniforms,
   shapeOptions,
@@ -66,16 +78,19 @@ export function orbitalStates({
     (orbital: QuantumNumbers) => orbitalShape(orbital, uniforms, shapeOptions),
     { size: shapeCacheSize, key: orbitalKey },
   )
-  const toTargetState = (orbital: QuantumNumbers): OrbitalState => ({
+  const toTargetState = ([orbital, spin]: [
+    QuantumNumbers,
+    number,
+  ]): OrbitalState => ({
     shape: shapeFor(orbital),
     m: orbital.m,
+    spin,
   })
   // replayed so each morph pipeline (one per config) starts from the latest target
-  const target$ = orbital$.pipe(
-    distinctUntilChanged(isSameOrbital),
-    map(toTargetState),
-    shareReplay({ bufferSize: 1, refCount: true }),
-  )
+  const target$ = combineLatest([
+    orbital$.pipe(distinctUntilChanged(isSameOrbital)),
+    spin$.pipe(distinctUntilChanged()),
+  ]).pipe(map(toTargetState), shareReplay({ bufferSize: 1, refCount: true }))
 
   return target$.pipe(
     take(1),
@@ -91,7 +106,9 @@ function morphsFrom(
   // the last state emitted, i.e. what is on screen: every morph starts here
   let current = initial
   const isNotCurrentTarget = (target: OrbitalState) =>
-    target.shape !== current.shape || target.m !== current.m
+    target.shape !== current.shape ||
+    target.m !== current.m ||
+    target.spin !== current.spin
 
   return config$.pipe(
     switchMap((config) =>
@@ -112,5 +129,6 @@ function orbitalSchema(state: OrbitalState) {
   return {
     shape: { type: Object, value: state.shape, interpolator: mixShapes },
     m: state.m,
+    spin: state.spin,
   }
 }
