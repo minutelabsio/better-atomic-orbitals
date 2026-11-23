@@ -10,6 +10,7 @@ import {
 import { formatOrbitalNotation } from '../orbital/orbitalNotation'
 import { ORBITAL_PARAM } from '../routing/orbitalParam'
 import { currentOrbital } from '../routing/orbitalRoute.svelte'
+import { currentSpin, selectSpin } from '../routing/spinRoute.svelte'
 import { setParam } from '../routing/url.svelte'
 import {
   countOptions,
@@ -19,6 +20,7 @@ import {
   morphEasingOptions,
   orbitalOptions,
   resScaleOptions,
+  spinOptions,
 } from './devOptions'
 import type { DevSettings } from './devSettings'
 
@@ -44,6 +46,7 @@ const percent = (v: number) => `±${Math.round(v * 100)}%`
         () => formatOrbitalNotation(currentOrbital()),
         (notation) => setParam(ORBITAL_PARAM, notation)
       } />
+    <List label="spin" options={spinOptions} bind:value={currentSpin, selectSpin} />
     <Slider label="speed" min={0} max={0.005} step={0.0001} bind:value={settings.speed} />
     <Slider
       label="morph"

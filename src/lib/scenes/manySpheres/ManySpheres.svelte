@@ -3,6 +3,7 @@ import type { Easing } from 'intween'
 import { getContext, onMount } from 'svelte'
 import * as THREE from 'three'
 import { orbitalStates } from '../../orbital/orbitalTransition.js'
+import { type SpinSetting, spinProjection } from '../../orbital/spinSetting.js'
 import { observe } from '../../rx/observe.svelte.js'
 import fragmentShader from './manySpheres.frag.glsl'
 import vertexShader from './manySpheres.vert.glsl'
@@ -33,6 +34,7 @@ let {
   n = 1,
   l = 0,
   m = 0,
+  spin = 'off',
   speed = 0.001,
   morphDuration = 1500,
   morphEasing = 'cubicInOut',
@@ -52,6 +54,7 @@ let {
   n?: number
   l?: number
   m?: number
+  spin?: SpinSetting
   speed?: number
   /** orbital-to-orbital morph duration, ms */
   morphDuration?: number
@@ -60,6 +63,7 @@ let {
 
 // switch orbitals by morphing in place (no remount)
 const orbital$ = observe(() => ({ n, l, m }))
+const spin$ = observe(() => spinProjection(spin))
 const morphConfig$ = observe(() => ({
   duration: morphDuration,
   easing: morphEasing,
@@ -83,6 +87,7 @@ onMount(() => {
   const grid = createSphereGrid({ count, gridRes })
   const orbitalStateSub = orbitalStates({
     orbital$,
+    spin$,
     config$: morphConfig$,
     uniforms: grid.uniforms,
   }).subscribe((state) => grid.setOrbitalState(state))

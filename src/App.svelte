@@ -3,6 +3,7 @@ import DevPanel from './lib/dev/DevPanel.svelte'
 import { GI_OBJECT_SPACE } from './lib/dev/devOptions'
 import { defaultDevSettings } from './lib/dev/devSettings'
 import { currentOrbital } from './lib/routing/orbitalRoute.svelte'
+import { currentSpin } from './lib/routing/spinRoute.svelte'
 import { searchParams } from './lib/routing/url.svelte'
 import ManySpheres from './lib/scenes/manySpheres/ManySpheres.svelte'
 import ManySpheresObjGI from './lib/scenes/manySpheres/ManySpheresObjGI.svelte'
@@ -10,6 +11,7 @@ import Three from './lib/Three.svelte'
 
 // linkable state lives in the URL; dev-only render settings stay local
 const orbital = $derived(currentOrbital())
+const spin = $derived(currentSpin())
 const debug = $derived(searchParams().has('debug'))
 
 let settings = $state(defaultDevSettings())
@@ -33,6 +35,7 @@ let settings = $state(defaultDevSettings())
           n={orbital.n}
           l={orbital.l}
           m={orbital.m}
+          {spin}
           speed={settings.speed}
           morphDuration={settings.morphDuration}
           morphEasing={settings.morphEasing}
@@ -53,6 +56,7 @@ let settings = $state(defaultDevSettings())
           n={orbital.n}
           l={orbital.l}
           m={orbital.m}
+          {spin}
           speed={settings.speed}
           morphDuration={settings.morphDuration}
           morphEasing={settings.morphEasing}

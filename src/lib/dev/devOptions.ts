@@ -1,6 +1,7 @@
 import { LUTS } from '../../luts'
 import { allOrbitals, MAX_N, orbitalLabel } from '../orbital/orbitalCatalog'
 import { formatOrbitalNotation } from '../orbital/orbitalNotation'
+import { SPIN_SETTINGS } from '../orbital/spinSetting'
 
 /** Choices offered by the dev panel's dropdowns, as tweakpane List options. */
 
@@ -8,6 +9,11 @@ import { formatOrbitalNotation } from '../orbital/orbitalNotation'
 export const orbitalOptions = allOrbitals(MAX_N).map((o) => ({
   text: orbitalLabel(o),
   value: formatOrbitalNotation(o),
+}))
+
+export const spinOptions = SPIN_SETTINGS.map((value) => ({
+  text: value,
+  value,
 }))
 
 export const lutOptions = LUTS.map(({ label, path }) => ({
