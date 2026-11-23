@@ -21,6 +21,8 @@ modes (§5), multi-orbital layout (§6).
   consume it; the radial extent is fit to `clusterRadius` (99th-pct → clusterRadius,
   far tail clamped). Orbital dropdown in `App.svelte`; changing it calls
   `grid.reseed(n,l,m)` via a `$effect` — **no remount** (orbital is not in the `{#key}`).
+- **[prototype] Spin current (§2b).** Pauli spin term added to ω, off by default;
+  `?spin=up|down` or the dev panel's spin list.
 - **[todo] Size (§3), colour (§4), cutaway modes (§5), multi-orbital layout (§6).**
 
 ### Coordinate plan (decided)
@@ -107,6 +109,70 @@ Notes:
   particles sit there; still, add a small epsilon or cap ω for robustness.
 - **Ignore the `dphidt` Laguerre/Legendre formula in `Animate Particles Spin Local.py`** —
   that was a different/older "spin local" experiment. The video used ω = m/ρ².
+
+### 2b. Spin current — the electron-spin term (prototype, `?spin=up|down`)
+
+ω = m/ρ² is the Schrödinger current, which ignores spin. The Pauli current (Holland;
+Colijn & Vrscay, Phys. Lett. A 300 (2002) 334, arXiv quant-ph/0308105 and
+quant-ph/0304198) adds a divergence-free spin term. In atomic units (ħ = mₑ = 1):
+
+```
+v = ∇S + ∇ln|ψ| × s        s = ψ†σψ/ψ†ψ  (unit spin direction for a pure spin state)
+```
+
+With s along the quantization axis (s_z = +1 up, −1 down) the extra flow is still a
+rigid rotation about the axis, so storage and the per-frame loop are unchanged:
+
+```
+ω = m/ρ² − s_z · ∂ρ ln|ψ| / ρ        ∂ρ = sinθ ∂r + (cosθ/r) ∂θ  (at fixed height)
+```
+
+e.g. spin up: 1s → 1/r; 2p0 → 1/(2r); 2p(+1) → 1/(2r) (the spin term's −1/ρ² cancels
+m/ρ²); 2p(−1) → −2/ρ² + 1/(2r). These closed forms are the tests in `spinCurrent.test.ts`.
+
+Code: `logAmplitudeGradient.ts` (analytic ∇ln|ψ| in cylindrical components),
+`spinCurrent.ts` (`spinCurrentVelocity(∇ln|ψ|, s)` = the cross product, any frame;
+`axialSpinCurrentOmega` for s along the axis), `spinSwirl.ts` (per-particle ω for one
+orbital shape), `spinSetting.ts` (off/up/down → s_z). The swarm adds
+`spin · spinUpSwirl` to ω.
+
+Decisions:
+
+- **Units.** `orbitalShape` scales atomic r by `scale = clusterRadius / r₉₉`, so ρ in
+  `m/ρ²` has always been in **world units**: today's ω is the atomic ω divided by
+  scale², i.e. ħ/mₑ = 1 with the world length unit (and a time unit of one frame,
+  times the speed slider). Each orbital records `bohrRadius = scale` (world units per a₀)
+  and the spin term is evaluated in world units with a₀ = `bohrRadius`, so it picks up
+  the same 1/scale² and the two terms keep their physical ratio under one speed
+  constant. (Inherited quirk: each orbital has its own scale, so absolute speeds aren't
+  comparable *between* orbitals; that was already true of m/ρ².)
+- **Softening.** ψ factors as ρ^|m| · r^(l−|m|) · D_l^|m|(cosθ) · L(2r/n) · e^(−r/n),
+  so ∇ln|ψ| is a sum of one term per factor, and each factor but the decay gives a
+  1/(distance to its node) singularity (axis, origin, nodal cones, nodal spheres). Each
+  one is softened to d/(d² + ε) with the **same ε as the orbital term** (`omegaSoftening`,
+  0.02 world² ≈ 0.14 world units). On the axis this gives −|m|/(ρ² + ε), so the 2p(+1)
+  spin-up cancellation stays exact with softening on. Linear speed v = ωρ is then
+  bounded everywhere (measured over 50k particles: ≤ ~8 world units per unit time, vs
+  3.5|m| for the softened orbital term). ω itself can still be large very close to the
+  axis or origin, but there v is bounded and the particle only circles a tiny ring.
+- **Morphs.** The spin term depends on the whole orbital (n, l, m), not just m, and an
+  in-between shape isn't any orbital, so there is no honest "spin term of the morph".
+  Instead each particle's spin-term ω is computed at both endpoint orbitals and blended
+  with the shape's own mix factor (`createFieldEvaluator` in `shapeMix.ts`); the m/ρ²
+  term keeps following the tweened m as before. Mid-morph the 2p(+1) cancellation is
+  therefore not exact. The spin setting itself is part of the tweened `OrbitalState`, so
+  switching it fades the term in or out over the morph duration.
+- **Axis handedness.** Particles are placed at (ρ cosφ, r cosθ, ρ sinφ), which is a
+  mirror image of a right-handed frame about +Y: positive m circulates right-handedly
+  about **−Y**. "Spin up" means s parallel to the axis positive m circulates about, so in
+  world coordinates it points along −Y. |ψ|² is symmetric under y → −y, so this only
+  matters for labels, and for the tilted-axis follow-on, which must express s in the
+  same right-handed frame as the gradient.
+
+Follow-ons this is shaped for (not built): spin–orbit fine-structure spinors (s varies in
+space: add ½∇×s to `spinCurrentVelocity`'s result, and ∇ln of the spinor density), and a
+tilted/precessing spin axis (call `spinCurrentVelocity` with the full s; the flow stops
+being azimuthal, so the per-frame motion would need a 3-D integrator).
 
 ### 3. Size — `size ∝ ⟨r⟩^points_exponent`
 
