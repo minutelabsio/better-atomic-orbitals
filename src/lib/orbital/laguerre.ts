@@ -19,3 +19,15 @@ export function generalizedLaguerre(
   }
   return cur
 }
+
+/**
+ * d/dx L_k^alpha(x) = -L_{k-1}^{alpha+1}(x), and zero for k = 0.
+ */
+export function generalizedLaguerreDerivative(
+  k: number,
+  alpha: number,
+  x: number,
+): number {
+  if (k === 0) return 0
+  return -generalizedLaguerre(k - 1, alpha + 1, x)
+}
