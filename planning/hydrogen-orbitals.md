@@ -209,6 +209,18 @@ and where it lives:
   dumbbell plus ⅔ down in a p(+1) torus, together a round cloud; 2p3/2 m_j=½ is the same
   two shapes weighted ⅔ up, ⅓ down. `measuredSpin.test.ts` checks the up fraction against
   |c↑|² and each spin's polar histogram against its |Y_l^m|² sin θ.
+- **Spin both (`?spin=both`, plain orbitals).** An unpolarized mixture: each particle is
+  labelled spin up for life when its `uSpin` < ½, else down (`unpolarizedSpin.ts`). The
+  label doesn't depend on position, because |n l m, ↑⟩ and |n l m, ↓⟩ have the same
+  density; only the swirl (ω = m/ρ² + label × the §2b spin-up term, same softening) and
+  the color follow it, and the default coloring is `measured` (orange up, blue down). Read
+  it as an ensemble of atoms with random spins, an unpolarized gas: each sphere is a
+  different atom's electron, with a definite spin. That differs from the fine-structure
+  colors above, which are possible measurement outcomes for one electron. A single
+  electron "with both spins" is a superposition, i.e. a spin pointing sideways: that's the
+  tilted mode of the spin-precession branch. Labels are fixed for life; a morph into or
+  out of "both" fades the label term in or out per particle (`OrbitalState.unpolarized`),
+  and its colors snap halfway like the others. `?split=1` separates by these labels too.
 - **Average spin (`?color=average`).** s = ψ†σψ/ψ†ψ lies in the meridional plane and
   depends on θ alone (`spinDirection.ts`), so each particle's tilt is fixed for life; it's
   shown through a three-stop palette (`spinPalette.ts`). It's the local expectation value,
