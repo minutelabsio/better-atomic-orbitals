@@ -8,6 +8,7 @@ import { formatFineStructureNotation } from '../orbital/fineStructureNotation'
 import { allOrbitals, MAX_N, orbitalLabel } from '../orbital/orbitalCatalog'
 import { formatOrbitalNotation } from '../orbital/orbitalNotation'
 import { SPIN_SETTINGS } from '../orbital/spinSetting'
+import type { SphereColoring } from '../scenes/manySpheres/sphereColoring'
 
 /** Choices offered by the dev panel's dropdowns, as tweakpane List options. */
 
@@ -30,6 +31,12 @@ export const spinOptions = SPIN_SETTINGS.map((value) => ({
   text: value,
   value,
 }))
+
+export const coloringOptions: { text: string; value: SphereColoring }[] = [
+  { text: 'measured spin', value: 'measured' },
+  { text: 'average spin', value: 'average' },
+  { text: 'plain', value: 'plain' },
+]
 
 export const lutOptions = LUTS.map(({ label, path }) => ({
   text: label,

@@ -13,7 +13,7 @@ import Three from './lib/Three.svelte'
 // linkable state lives in the URL; dev-only render settings stay local
 const orbital = $derived(currentOrbital())
 const spin = $derived(currentSpin())
-const colorBySpin = $derived(currentColoring() === 'spin')
+const coloring = $derived(currentColoring())
 const debug = $derived(searchParams().has('debug'))
 
 let settings = $state(defaultDevSettings())
@@ -29,7 +29,7 @@ let settings = $state(defaultDevSettings())
           blend={settings.objBlend}
           samples={settings.objSamples}
           sphereColor={settings.sphereColor}
-          {colorBySpin}
+          {coloring}
           bgColor={settings.bgColor}
           cutaway={settings.cutaway}
           cutawayFeather={settings.cutawayFeather}
@@ -49,7 +49,7 @@ let settings = $state(defaultDevSettings())
           randomize={settings.randomize}
           indirect={settings.indirect}
           sphereColor={settings.sphereColor}
-          {colorBySpin}
+          {coloring}
           bgColor={settings.bgColor}
           cutaway={settings.cutaway}
           cutawayFeather={settings.cutawayFeather}

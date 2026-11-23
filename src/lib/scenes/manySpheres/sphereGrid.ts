@@ -1,7 +1,10 @@
 import type { OrbitalState } from '../../orbital/orbitalTransition.js'
 import type { ParticleUniforms } from '../../orbital/particleUniforms.js'
 import type { ParticleField } from '../../orbital/shapeMix.js'
-import { createSpinAlongAxisResolver } from '../../orbital/spinAlongAxisOfState.js'
+import {
+  createSpinFieldResolver,
+  type SpinField,
+} from '../../orbital/spinFieldOfState.js'
 import { createGridBuilder } from './gridBuilder.js'
 import { gridGeometry } from './gridGeometry.js'
 import {
@@ -21,13 +24,15 @@ export interface SphereGridOptions {
 export interface SphereGridFrame extends SphereStyle {
   /** visual speed scale applied to each particle's angular velocity */
   speedScale: number
+  /** which spin goes into `sphereSpin` */
+  spinField: SpinField
 }
 
 export interface SphereGrid {
   readonly uniforms: ParticleUniforms
   /** sphere centres + radii, one texel per sphere */
   readonly spheres: PackedFloatTexture
-  /** each sphere's spin along the axis (cos of its tilt), same layout as `spheres` */
+  /** each sphere's spin along the axis (+1 up … -1 down), same layout as `spheres` */
   readonly sphereSpin: PackedFloatTexture
   /** uniforms the ray-tracing shaders read the grid from; values update in place */
   readonly shaderUniforms: Record<string, { value: unknown }>
@@ -57,7 +62,10 @@ export function createSphereGrid({
   const swarm = createParticleSwarm({ count })
   const spheres = packedFloatTexture(count, 4)
   const sphereSpin = packedFloatTexture(count, 1)
-  const spinAlongAxisOf = createSpinAlongAxisResolver(count)
+  const spinFieldOf = createSpinFieldResolver({
+    count,
+    uSpin: swarm.uniforms.uSpin,
+  })
   const grid = createGridBuilder({ geometry, sphereCount: count })
   const shaderUniforms = {
     uSpherePos: { value: spheres.texture },
@@ -75,14 +83,15 @@ export function createSphereGrid({
     uSpinDefined: { value: false },
   }
   let shownSpin: ParticleField | undefined
+  let orbitalState: OrbitalState | undefined
 
-  // the spin field only changes with the state, so upload it only then
-  const showSpin = (spinAlongAxis: ParticleField | undefined) => {
-    if (spinAlongAxis === shownSpin) return
-    shownSpin = spinAlongAxis
-    shaderUniforms.uSpinDefined.value = spinAlongAxis !== undefined
-    if (!spinAlongAxis) return
-    sphereSpin.data.set(spinAlongAxis)
+  // a spin field only changes with the state or the choice, so upload it only then
+  const showSpin = (spin: ParticleField | undefined) => {
+    if (spin === shownSpin) return
+    shownSpin = spin
+    shaderUniforms.uSpinDefined.value = spin !== undefined
+    if (!spin) return
+    sphereSpin.data.set(spin)
     sphereSpin.texture.needsUpdate = true
   }
 
@@ -92,10 +101,11 @@ export function createSphereGrid({
     sphereSpin,
     shaderUniforms,
     setOrbitalState(state) {
+      orbitalState = state
       swarm.setOrbitalState(state)
-      showSpin(spinAlongAxisOf(state))
     },
-    update({ speedScale, ...style }) {
+    update({ speedScale, spinField, ...style }) {
+      showSpin(orbitalState && spinFieldOf(orbitalState, spinField))
       swarm.advance(speedScale)
       swarm.writeSpheres(spheres.data, style)
       spheres.texture.needsUpdate = true

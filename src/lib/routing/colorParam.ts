@@ -6,9 +6,10 @@ import {
 } from '../scenes/manySpheres/sphereColoring'
 
 /**
- * Query param holding the sphere coloring: `?color=spin` or `?color=plain`.
- * Absent means the state's default (`defaultSphereColoring`), so a bare
- * `?o=2p1/2m1/2` shows spin colors and `?o=2p1` doesn't.
+ * Query param holding the sphere coloring: `?color=measured`, `average` or
+ * `plain` (see sphereColoring.ts). Absent means the state's default
+ * (`defaultSphereColoring`), so a bare `?o=2p1/2m1/2` shows measured spin
+ * colors and `?o=2p1` doesn't.
  */
 export const COLOR_PARAM = 'color'
 

@@ -16,6 +16,7 @@ import { currentOrbital } from '../routing/orbitalRoute.svelte'
 import { currentSpin, selectSpin } from '../routing/spinRoute.svelte'
 import { setParam } from '../routing/url.svelte'
 import {
+  coloringOptions,
   countOptions,
   GI_SCREEN_SPACE,
   giStrategyOptions,
@@ -93,10 +94,7 @@ const percent = (v: number) => `±${Math.round(v * 100)}%`
       bind:value={settings.radiusVariation}
     />
     <Color label="sphere" bind:value={settings.sphereColor} />
-    <Checkbox label="color by spin" bind:value={
-        () => currentColoring() === 'spin',
-        (bySpin) => selectColoring(bySpin ? 'spin' : 'plain')
-      } />
+    <List label="color" options={coloringOptions} bind:value={currentColoring, selectColoring} />
     <Color label="background" bind:value={settings.bgColor} />
   </Folder>
 

@@ -1,18 +1,34 @@
 import { describe, expect, it } from 'vitest'
-import { defaultSphereColoring, isSphereColoring } from './sphereColoring'
+import {
+  defaultSphereColoring,
+  isSphereColoring,
+  spinFieldOf,
+} from './sphereColoring'
 
 describe('defaultSphereColoring', () => {
-  it('colors fine-structure states by spin and plain orbitals plainly', () => {
-    expect(defaultSphereColoring({ n: 2, l: 1, j: 0.5, mj: 0.5 })).toBe('spin')
+  it('colors fine-structure states by measured spin and plain orbitals plainly', () => {
+    expect(defaultSphereColoring({ n: 2, l: 1, j: 0.5, mj: 0.5 })).toBe(
+      'measured',
+    )
     expect(defaultSphereColoring({ n: 2, l: 1, m: 1 })).toBe('plain')
   })
 })
 
 describe('isSphereColoring', () => {
   it('accepts only the known colorings', () => {
-    expect(isSphereColoring('spin')).toBe(true)
-    expect(isSphereColoring('plain')).toBe(true)
-    expect(isSphereColoring('SPIN')).toBe(false)
-    expect(isSphereColoring('')).toBe(false)
+    for (const text of ['measured', 'average', 'plain']) {
+      expect(isSphereColoring(text)).toBe(true)
+    }
+    for (const text of ['spin', 'Measured', '']) {
+      expect(isSphereColoring(text)).toBe(false)
+    }
+  })
+})
+
+describe('spinFieldOf', () => {
+  it('maps each coloring to the spin it shows', () => {
+    expect(spinFieldOf('measured')).toBe('measured')
+    expect(spinFieldOf('average')).toBe('average')
+    expect(spinFieldOf('plain')).toBeUndefined()
   })
 })
