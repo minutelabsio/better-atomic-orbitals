@@ -8,6 +8,9 @@ export interface GridGeometry {
   readonly cellSize: number
 }
 
+/** Where the grid sits: what may change between builds at a fixed resolution. */
+export type GridExtent = Pick<GridGeometry, 'boundMin' | 'cellSize'>
+
 export function gridGeometry({
   gridRes,
   boundRadius,
@@ -19,9 +22,13 @@ export function gridGeometry({
   return {
     gridRes,
     cellCount: gridRes ** 3,
-    boundMin: -boundRadius,
-    cellSize: (2 * boundRadius) / gridRes,
+    ...gridExtent(gridRes, boundRadius),
   }
+}
+
+/** The extent of a cube of half-width `boundRadius` centred on the origin. */
+export function gridExtent(gridRes: number, boundRadius: number): GridExtent {
+  return { boundMin: -boundRadius, cellSize: (2 * boundRadius) / gridRes }
 }
 
 /** The cell index along one axis containing `coordinate`, clamped to [0, last]. */

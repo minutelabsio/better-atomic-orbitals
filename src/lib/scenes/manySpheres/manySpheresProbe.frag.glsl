@@ -28,6 +28,12 @@ uniform int uCount;
 uniform vec3 uAlbedo;
 uniform vec3 uBackground;
 
+// "color by spin": each sphere's spin along the axis, through a palette
+uniform sampler2D uSphereSpin;  // R32F, same layout as uSpherePos
+uniform bool uColorBySpin;
+uniform bool uSpinDefined;      // false for a spinless state: keep uAlbedo
+uniform mat3 uSpinPalette;      // columns: up, sideways, down (linear)
+
 // per-sphere indirect history (EMA), same layout as the sphere-position texture
 uniform sampler2D uIndirectHistory;
 uniform float uBlend;   // EMA weight for the current sample (1.0 = reset)
@@ -40,6 +46,8 @@ uniform int uSamples;   // bounce samples averaged per frame
 #pragma glslify: cosineHemisphere = require(./shared/cosineHemisphere.glsl)
 #pragma glslify: directIrradiance = require(./shared/directIrradiance.glsl)
 #pragma glslify: skyColor = require(./shared/skyColor.glsl)
+#pragma glslify: spinPalette = require(./shared/spinPalette.glsl)
+#pragma glslify: sphereTexelUv = require(./shared/sphereTexelUv.glsl)
 
 #define EPS 1e-4
 #define PI 3.14159265359
@@ -47,6 +55,13 @@ uniform int uSamples;   // bounce samples averaged per frame
 GridParams gridParams() {
   return GridParams(uGridRes, uBoundMin, uCellSize,
     uSpherePosTexW, uCellRangeTexW, uIndexListTexW);
+}
+
+// a sphere's own colour: the uniform albedo, or its spin tilt in the palette
+vec3 albedoOf(int index) {
+  if (!(uColorBySpin && uSpinDefined)) return uAlbedo;
+  vec2 uv = sphereTexelUv(index, uSpherePosTexW, uSphereTexH);
+  return spinPalette(texture(uSphereSpin, uv).r, uSpinPalette);
 }
 
 // uniform random direction on the unit sphere
@@ -78,6 +93,7 @@ void main() {
 
   uint seed = uint(index) * 9781u + uFrame * 6271u + 1u;
   GridParams g = gridParams();
+  vec3 albedo = albedoOf(index);
 
   // Average several bounce samples this frame. Each draws a random surface point
   // AND a random bounce direction, so a single sample has high variance (sky vs
@@ -98,12 +114,13 @@ void main() {
     if (bt > 0.0) {
       vec3 bhp = bo + bdir * bt;
       vec3 bn = normalize(bhp - bcenter);
-      Li = uAlbedo * directIrradiance(bn, 1.0);
+      // the neighbour's own colour: this is the colour bleeding
+      Li = albedoOf(bidx) * directIrradiance(bn, 1.0);
     } else {
       Li = skyColor(bdir, uBackground);
     }
-    // matches the screen-space shader's indirect term (uAlbedo * Li)
-    acc += uAlbedo * Li;
+    // matches the screen-space shader's indirect term (albedo * Li)
+    acc += albedo * Li;
   }
   vec3 indirectSample = acc / float(max(uSamples, 1));
 

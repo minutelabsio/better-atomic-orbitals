@@ -6,12 +6,18 @@ import {
   List,
   Pane,
   Slider,
+  Text,
 } from 'svelte-tweakpane-ui'
-import { formatOrbitalNotation } from '../orbital/orbitalNotation'
+import { isFineStructure } from '../orbital/fineStructure'
+import { formatHydrogenStateNotation } from '../orbital/hydrogenStateNotation'
+import { currentColoring, selectColoring } from '../routing/colorRoute.svelte'
 import { ORBITAL_PARAM } from '../routing/orbitalParam'
 import { currentOrbital } from '../routing/orbitalRoute.svelte'
+import { currentSpin, selectSpin } from '../routing/spinRoute.svelte'
+import { currentSplit, selectSplit } from '../routing/splitRoute.svelte'
 import { setParam } from '../routing/url.svelte'
 import {
+  coloringOptions,
   countOptions,
   GI_SCREEN_SPACE,
   giStrategyOptions,
@@ -19,6 +25,7 @@ import {
   morphEasingOptions,
   orbitalOptions,
   resScaleOptions,
+  spinOptions,
 } from './devOptions'
 import type { DevSettings } from './devSettings'
 
@@ -41,9 +48,15 @@ const percent = (v: number) => `±${Math.round(v * 100)}%`
 >
   <Folder title="Orbital">
     <List label="orbital" options={orbitalOptions} bind:value={
-        () => formatOrbitalNotation(currentOrbital()),
+        () => formatHydrogenStateNotation(currentOrbital()),
         (notation) => setParam(ORBITAL_PARAM, notation)
       } />
+    {#if isFineStructure(currentOrbital())}
+      <!-- a fine-structure state carries its own spin mix: the setting doesn't apply -->
+      <Text label="spin" value="set by j, mj" disabled />
+    {:else}
+      <List label="spin" options={spinOptions} bind:value={currentSpin, selectSpin} />
+    {/if}
     <Slider label="speed" min={0} max={0.005} step={0.0001} bind:value={settings.speed} />
     <Slider
       label="morph"
@@ -82,6 +95,8 @@ const percent = (v: number) => `±${Math.round(v * 100)}%`
       bind:value={settings.radiusVariation}
     />
     <Color label="sphere" bind:value={settings.sphereColor} />
+    <List label="color" options={coloringOptions} bind:value={currentColoring, selectColoring} />
+    <Checkbox label="split by spin" bind:value={currentSplit, selectSplit} />
     <Color label="background" bind:value={settings.bgColor} />
   </Folder>
 

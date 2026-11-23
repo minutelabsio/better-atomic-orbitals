@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { seededRng } from '../../orbital/__fixtures__/seededRng.js'
 import { isInCutQuadrant } from './cutaway.js'
 import { createGridBuilder } from './gridBuilder.js'
-import { clampedCellIndex, gridGeometry } from './gridGeometry.js'
+import {
+  clampedCellIndex,
+  type GridExtent,
+  gridExtent,
+  gridGeometry,
+} from './gridGeometry.js'
 
 const SPHERE_COUNT = 300
 const geometry = gridGeometry({ gridRes: 8, boundRadius: 1 })
@@ -22,18 +27,14 @@ function randomSpheres(rng: () => number): Float32Array {
 function bruteForceCellLists(
   spheres: Float32Array,
   cutaway: boolean,
+  { boundMin, cellSize }: GridExtent = geometry,
 ): number[][] {
   const lists: number[][] = Array.from({ length: geometry.cellCount }, () => [])
   for (let i = 0; i < SPHERE_COUNT; i += 1) {
     const [x, y, z, r] = spheres.subarray(i * 4, i * 4 + 4)
     if (cutaway && isInCutQuadrant(y!, z!)) continue
     const cell = (coordinate: number) =>
-      clampedCellIndex(
-        coordinate,
-        geometry.boundMin,
-        geometry.cellSize,
-        geometry.gridRes - 1,
-      )
+      clampedCellIndex(coordinate, boundMin, cellSize, geometry.gridRes - 1)
     for (let cz = cell(z! - r!); cz <= cell(z! + r!); cz += 1)
       for (let cy = cell(y! - r!); cy <= cell(y! + r!); cy += 1)
         for (let cx = cell(x! - r!); cx <= cell(x! + r!); cx += 1)
@@ -69,5 +70,13 @@ describe('createGridBuilder', () => {
   it('leaves the cut quadrant out, and rebuilds cleanly', () => {
     builder.build(spheres, { cutaway: true })
     expect(builtCellLists(builder)).toEqual(bruteForceCellLists(spheres, true))
+  })
+
+  it('can place the same cells over a larger extent for one build', () => {
+    const wider = gridExtent(geometry.gridRes, 2)
+    builder.build(spheres, { cutaway: false, extent: wider })
+    expect(builtCellLists(builder)).toEqual(
+      bruteForceCellLists(spheres, false, wider),
+    )
   })
 })

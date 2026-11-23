@@ -1,25 +1,29 @@
 import { BehaviorSubject } from 'rxjs'
 import { describe, expect, it } from 'vitest'
 import { seededRng } from './__fixtures__/seededRng.js'
+import type { HydrogenState } from './fineStructure.js'
 import {
   type MorphConfig,
   type OrbitalState,
   orbitalStates,
 } from './orbitalTransition.js'
 import { drawParticleUniforms } from './particleUniforms.js'
-import type { QuantumNumbers } from './quantumNumbers.js'
 
 const uniforms = drawParticleUniforms(500, seededRng(1))
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-function morphHarness(initial: QuantumNumbers, config: MorphConfig) {
-  const orbital$ = new BehaviorSubject(initial)
+function morphHarness(initial: HydrogenState, config: MorphConfig) {
+  const orbital$ = new BehaviorSubject<HydrogenState>(initial)
+  const spin$ = new BehaviorSubject(0)
   const config$ = new BehaviorSubject(config)
   const states: OrbitalState[] = []
-  const subscription = orbitalStates({ orbital$, config$, uniforms }).subscribe(
-    (state) => states.push(state),
-  )
-  return { orbital$, config$, states, subscription }
+  const subscription = orbitalStates({
+    orbital$,
+    spin$,
+    config$,
+    uniforms,
+  }).subscribe((state) => states.push(state))
+  return { orbital$, spin$, config$, states, subscription }
 }
 
 const largestStepInM = (states: OrbitalState[]) =>
@@ -96,6 +100,79 @@ describe('orbitalStates', () => {
     await sleep(300)
     expect(states.at(-1)!.m).toBe(-1)
     expect(largestStepInM(states)).toBeLessThan(1)
+    subscription.unsubscribe()
+  })
+
+  it('fades the spin in without moving the particles', async () => {
+    const { spin$, states, subscription } = morphHarness(
+      { n: 2, l: 1, m: 1 },
+      { duration: 120, easing: 'linear' },
+    )
+    expect(states[0]!.spin).toBe(0)
+    spin$.next(1)
+    await sleep(60)
+    const mid = states.at(-1)!
+    expect(mid.spin).toBeGreaterThan(0)
+    expect(mid.spin).toBeLessThan(1)
+    expect(mid.m).toBe(1)
+
+    await sleep(200)
+    const end = states.at(-1)!
+    expect(end.spin).toBe(1)
+    // intween clones the shape object; its arrays pass through by reference
+    const shapeArray = (state: OrbitalState) =>
+      state.shape.kind === 'orbital' && state.shape.r
+    expect(shapeArray(end)).toBe(shapeArray(states[0]!))
+    subscription.unsubscribe()
+  })
+
+  it('defaults to no spin', () => {
+    const subscription = orbitalStates({
+      orbital$: new BehaviorSubject({ n: 1, l: 0, m: 0 }),
+      config$: new BehaviorSubject({ duration: 100, easing: 'linear' }),
+      uniforms,
+    }).subscribe((state) => expect(state.spin).toBe(0))
+    subscription.unsubscribe()
+  })
+
+  it('morphs into a fine-structure state, fading the m/ρ² swirl out', async () => {
+    const { orbital$, states, subscription } = morphHarness(
+      { n: 2, l: 1, m: 1 },
+      { duration: 120, easing: 'linear' },
+    )
+    orbital$.next({ n: 2, l: 1, j: 0.5, mj: 0.5 })
+    await sleep(260)
+    const end = states.at(-1)!
+    // its whole flow comes from the shape's own field, not from m
+    expect(end.m).toBe(0)
+    expect(end.shape.kind === 'orbital' && end.shape.orbital).toEqual({
+      n: 2,
+      l: 1,
+      j: 0.5,
+      mj: 0.5,
+    })
+    subscription.unsubscribe()
+  })
+
+  it('fades in each particle’s own spin label (spin both) without moving the particles', async () => {
+    const orbital$ = new BehaviorSubject<HydrogenState>({ n: 1, l: 0, m: 0 })
+    const unpolarized$ = new BehaviorSubject(0)
+    const states: OrbitalState[] = []
+    const subscription = orbitalStates({
+      orbital$,
+      unpolarized$,
+      config$: new BehaviorSubject({ duration: 120, easing: 'linear' }),
+      uniforms,
+    }).subscribe((state) => states.push(state))
+    expect(states[0]!.unpolarized).toBe(0)
+    unpolarized$.next(1)
+    await sleep(60)
+    const mid = states.at(-1)!.unpolarized!
+    expect(mid).toBeGreaterThan(0)
+    expect(mid).toBeLessThan(1)
+    await sleep(200)
+    expect(states.at(-1)!.unpolarized).toBe(1)
+    expect(states.at(-1)!.spin).toBe(0)
     subscription.unsubscribe()
   })
 })

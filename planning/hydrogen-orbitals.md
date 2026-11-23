@@ -21,6 +21,11 @@ modes (§5), multi-orbital layout (§6).
   consume it; the radial extent is fit to `clusterRadius` (99th-pct → clusterRadius,
   far tail clamped). Orbital dropdown in `App.svelte`; changing it calls
   `grid.reseed(n,l,m)` via a `$effect` — **no remount** (orbital is not in the `{#key}`).
+- **[prototype] Spin current (§2b).** Pauli spin term added to ω, off by default;
+  `?spin=up|down` or the dev panel's spin list.
+- **[prototype] Fine structure (§2c).** Spin–orbit states |n l j m_j⟩ in the orbital
+  list and as `?o=2p3/2m1/2`, colored by measured spin by default
+  (`?color=measured|average|plain`); `?split=1` separates the two spins.
 - **[todo] Size (§3), colour (§4), cutaway modes (§5), multi-orbital layout (§6).**
 
 ### Coordinate plan (decided)
@@ -107,6 +112,160 @@ Notes:
   particles sit there; still, add a small epsilon or cap ω for robustness.
 - **Ignore the `dphidt` Laguerre/Legendre formula in `Animate Particles Spin Local.py`** —
   that was a different/older "spin local" experiment. The video used ω = m/ρ².
+
+### 2b. Spin current — the electron-spin term (prototype, `?spin=up|down`)
+
+ω = m/ρ² is the Schrödinger current, which ignores spin. The Pauli current (Holland;
+Colijn & Vrscay, Phys. Lett. A 300 (2002) 334, arXiv quant-ph/0308105 and
+quant-ph/0304198) adds a divergence-free spin term. In atomic units (ħ = mₑ = 1):
+
+```
+v = ∇S + ∇ln|ψ| × s        s = ψ†σψ/ψ†ψ  (unit spin direction for a pure spin state)
+```
+
+With s along the quantization axis (s_z = +1 up, −1 down) the extra flow is still a
+rigid rotation about the axis, so storage and the per-frame loop are unchanged:
+
+```
+ω = m/ρ² − s_z · ∂ρ ln|ψ| / ρ        ∂ρ = sinθ ∂r + (cosθ/r) ∂θ  (at fixed height)
+```
+
+e.g. spin up: 1s → 1/r; 2p0 → 1/(2r); 2p(+1) → 1/(2r) (the spin term's −1/ρ² cancels
+m/ρ²); 2p(−1) → −2/ρ² + 1/(2r). These closed forms are the tests in `spinCurrent.test.ts`.
+
+Code: `logAmplitudeGradient.ts` (analytic ∇ln|ψ| in cylindrical components),
+`spinCurrent.ts` (`spinCurrentVelocity(∇ln|ψ|, s)` = the cross product, any frame;
+`axialSpinCurrentOmega` for s along the axis), `spinSwirl.ts` (per-particle ω for one
+orbital shape), `spinSetting.ts` (off/up/down → s_z). The swarm adds
+`spin · spinUpSwirl` to ω.
+
+Decisions:
+
+- **Units.** `orbitalShape` scales atomic r by `scale = clusterRadius / r₉₉`, so ρ in
+  `m/ρ²` has always been in **world units**: today's ω is the atomic ω divided by
+  scale², i.e. ħ/mₑ = 1 with the world length unit (and a time unit of one frame,
+  times the speed slider). Each orbital records `bohrRadius = scale` (world units per a₀)
+  and the spin term is evaluated in world units with a₀ = `bohrRadius`, so it picks up
+  the same 1/scale² and the two terms keep their physical ratio under one speed
+  constant. (Inherited quirk: each orbital has its own scale, so absolute speeds aren't
+  comparable *between* orbitals; that was already true of m/ρ².)
+- **Softening.** ψ factors as ρ^|m| · r^(l−|m|) · D_l^|m|(cosθ) · L(2r/n) · e^(−r/n),
+  so ∇ln|ψ| is a sum of one term per factor, and each factor but the decay gives a
+  1/(distance to its node) singularity (axis, origin, nodal cones, nodal spheres). Each
+  one is softened to d/(d² + ε) with the **same ε as the orbital term** (`omegaSoftening`,
+  0.02 world² ≈ 0.14 world units). On the axis this gives −|m|/(ρ² + ε), so the 2p(+1)
+  spin-up cancellation stays exact with softening on. Linear speed v = ωρ is then
+  bounded everywhere (measured over 50k particles: ≤ ~8 world units per unit time, vs
+  3.5|m| for the softened orbital term). ω itself can still be large very close to the
+  axis or origin, but there v is bounded and the particle only circles a tiny ring.
+- **Morphs.** The spin term depends on the whole orbital (n, l, m), not just m, and an
+  in-between shape isn't any orbital, so there is no honest "spin term of the morph".
+  Instead each particle's spin-term ω is computed at both endpoint orbitals and blended
+  with the shape's own mix factor (`createFieldEvaluator` in `shapeMix.ts`); the m/ρ²
+  term keeps following the tweened m as before. Mid-morph the 2p(+1) cancellation is
+  therefore not exact. The spin setting itself is part of the tweened `OrbitalState`, so
+  switching it fades the term in or out over the morph duration.
+- **Axis handedness.** Particles are placed at (ρ cosφ, r cosθ, −ρ sinφ)
+  (`writeSpheres` in `particleSwarm.ts`), so (ê_ρ, ê_φ, +Y) is right-handed and
+  increasing φ is a positive rotation about **+Y**: positive m circulates about +Y,
+  and spin up (s parallel to that axis) points along world +Y.
+  `particleSwarm.test.ts` pins this from the written sphere positions (r × v along +Y
+  for m > 0, and for the 1s spin-up term alone). Until this fix the placement was
+  (ρ cosφ, r cosθ, ρ sinφ), a mirror image in which both pointed along −Y. The visible
+  side effect of the fix: positive-m orbitals now swirl the other way on screen (seen
+  from the default front camera, the near side moves right, toward +X, where it used to
+  move left). |ψ|² is symmetric under y → −y, so the shapes don't change. A tilted spin
+  axis must give s in this same right-handed world frame.
+
+Follow-ons this is shaped for: spin–orbit fine-structure spinors (built, §2c), and a
+tilted/precessing spin axis (call `spinCurrentVelocity` with the full s; the flow stops
+being azimuthal, so the per-frame motion would need a 3-D integrator).
+
+### 2c. Fine structure — spin–orbit states (prototype, `?o=2p3/2m1/2`)
+
+A state |n l j m_j⟩ (j = l ± ½) is a Clebsch–Gordan mix of |n l m_j−½⟩ spin up and
+|n l m_j+½⟩ spin down with one shared R_nl (`clebschGordan.ts`, Condon–Shortley phases;
+coefficients checked against Sakurai 3.8.64 and Griffiths table 4.8). What follows from it,
+and where it lives:
+
+- **Shape.** |ψ|² still separates and is axially symmetric, so sampling is unchanged with a
+  new polar density (`fineStructureDensity.ts`). Every j = ½ state is spherical: 2p1/2
+  samples exactly like 2s.
+- **Flow.** The full Pauli current, orbital and spin parts together, is still purely
+  azimuthal, so storage and the per-frame loop are unchanged. `fineStructureCurrent.ts`
+  writes it as the weighted sum of each component's own flow as a pure spin-up/-down
+  orbital (reusing `logAmplitudeGradient`, `axialSpinCurrentOmega` and the same softening)
+  plus a cross term from the sideways spin; a stretched state (m_j = ±(l+½)) is therefore
+  exactly the §2b orbital + spin term. A fine-structure shape carries this whole ω as a
+  per-particle field; its `OrbitalState.m` is 0 and the spin setting doesn't apply to it.
+- **Measured spin (the default coloring).** Position and S_z commute, so the Born rule
+  gives a joint distribution: P(r, up) = |ψ↑|², P(r, down) = |ψ↓|². Each particle keeps a
+  fixed uniform `uSpin` and is labelled up when it falls below P(up | r) = |ψ↑|²/|ψ|²
+  (`measuredSpin.ts`). Positions stay samples of |ψ|², so the labelled cloud has exactly
+  that joint distribution, and since P(up | r) depends on θ alone the label holds along
+  each orbit. Spheres are colored orange (up) or blue (down). The colors label possible
+  measurement outcomes for the one electron, not separate particles: every sphere, either
+  color, follows the electron's single Pauli flow. 2p1/2 m_j=½ shows as ⅓ up in a p0
+  dumbbell plus ⅔ down in a p(+1) torus, together a round cloud; 2p3/2 m_j=½ is the same
+  two shapes weighted ⅔ up, ⅓ down. `measuredSpin.test.ts` checks the up fraction against
+  |c↑|² and each spin's polar histogram against its |Y_l^m|² sin θ.
+- **Spin both (`?spin=both`, plain orbitals).** An unpolarized mixture: each particle is
+  labelled spin up for life when its `uSpin` < ½, else down (`unpolarizedSpin.ts`). The
+  label doesn't depend on position, because |n l m, ↑⟩ and |n l m, ↓⟩ have the same
+  density; only the swirl (ω = m/ρ² + label × the §2b spin-up term, same softening) and
+  the color follow it, and the default coloring is `measured` (orange up, blue down). Read
+  it as an ensemble of atoms with random spins, an unpolarized gas: each sphere is a
+  different atom's electron, with a definite spin. That differs from the fine-structure
+  colors above, which are possible measurement outcomes for one electron. A single
+  electron "with both spins" is a superposition, i.e. a spin pointing sideways: that's the
+  tilted mode of the spin-precession branch. Labels are fixed for life; a morph into or
+  out of "both" fades the label term in or out per particle (`OrbitalState.unpolarized`),
+  and its colors snap halfway like the others. `?split=1` separates by these labels too.
+- **Average spin (`?color=average`).** s = ψ†σψ/ψ†ψ lies in the meridional plane and
+  depends on θ alone (`spinDirection.ts`), so each particle's tilt is fixed for life; it's
+  shown through a three-stop palette (`spinPalette.ts`). It's the local expectation value,
+  so most spheres get an in-between color that no measurement would give.
+- **Separate by spin (`?split=1`).** Slides measured spin-up spheres along the axis
+  positive m circulates about (world +Y, up the screen) and spin-down ones the other way, by
+  `SPIN_SEPARATION_DISTANCE`, tweened with the morph config (`spinSeparation.ts`). It's a
+  drawing device reminiscent of Stern–Gerlach separation, not physical motion: the shift
+  is added where spheres are written out, so the flow is untouched.
+- **Checks.** `fineStructureCurrent.test.ts` compares against Colijn & Vrscay
+  (quant-ph/0304198) Table 1, all five rows and their −m_j mirrors, and against a
+  brute-force current from finite differences of the complex spinor (hand-written R_nl,
+  Y_lm tables), which also confirms there's no flow off the azimuth. Table 1 agrees
+  exactly; no typo found in it.
+
+Decisions:
+
+- **Handedness.** Everything is computed in the right-handed physics frame (ê_ρ, ê_φ, ê_axis)
+  where positive m_j circulates with increasing φ, and ω drives the swarm's φ as m/ρ² does,
+  so the placement of §2b ("Axis handedness") maps it straight onto the world: positive
+  m_j circulates about world +Y. "Up" in the palette is spin along +Y, the same convention
+  as §2b's spin up.
+- **Renderer.** One float per sphere (±1 measured, or the average's cos tilt) in a
+  one-channel texture laid out like the sphere texture, uploaded only when the state or
+  the choice changes; the shaders map it to a color by tilt angle, so ±1 lands on the
+  palette's two ends. The coloring is `?color=measured|average|plain`; absent, a
+  fine-structure state gets `measured` and a plain orbital `plain` (`sphereColoring.ts`),
+  so a bare `?o=2p1/2m1/2` link shows the two spins. A spinless state (plain orbital, spin off)
+  keeps the uniform sphere color either way. The dev panel's spin list doesn't apply to a
+  fine-structure state and is shown disabled. In the object-space GI probe a bounce takes the
+  neighbour's own color, so color bleeding still works; both renderers support it.
+- **Separation distance and the grid.** The grid is a fixed-resolution cube just around the
+  cloud, so while separated its extent widens by the shift (`gridExtent`, same cell count).
+  Bigger cells hold more spheres, and a cell past the tracer's 64-sphere cap drops the rest:
+  at 50k spheres that already happens in today's 1s core, and the split adds some more in
+  the separated cores. The distance (1 world unit, about 0.7 of the cloud radius) keeps both
+  halves mostly in the default camera's view; the p0 dumbbell's tips still reach past the
+  bottom edge.
+- **Morphs.** Shapes morph as usual. The fine-structure ω field blends between endpoints
+  like the §2b spin term while the m/ρ² term fades with the tweened m, so speeds change
+  smoothly but aren't the current of any in-between state. Colors don't blend: they snap
+  to the nearer end of the morph (`dominantShape`).
+- **Picker.** All fine-structure states up to n = 3 are listed after the |n l m⟩ orbitals;
+  links take any n ≤ MAX_N.
+
 
 ### 3. Size — `size ∝ ⟨r⟩^points_exponent`
 

@@ -14,6 +14,11 @@ export interface ParticleUniforms {
   uPolar: Float32Array
   /** initial azimuth about the spin axis, [0, 2π) */
   phi: Float32Array
+  /**
+   * draws the spin a measurement would find at the particle's place, [0,1)
+   * (see `measuredSpin.ts`)
+   */
+  uSpin: Float32Array
 }
 
 export function drawParticleUniforms(
@@ -22,5 +27,10 @@ export function drawParticleUniforms(
 ): ParticleUniforms {
   const draw = (scale = 1) =>
     Float32Array.from({ length: count }, () => rng() * scale)
-  return { uR: draw(), uPolar: draw(), phi: draw(FULL_TURN) }
+  return {
+    uR: draw(),
+    uPolar: draw(),
+    phi: draw(FULL_TURN),
+    uSpin: draw(),
+  }
 }

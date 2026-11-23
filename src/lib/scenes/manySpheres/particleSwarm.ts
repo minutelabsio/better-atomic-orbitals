@@ -1,10 +1,22 @@
-import type { SphericalShape } from '../../orbital/orbitalShape.js'
+import { fineStructureSwirl } from '../../orbital/fineStructureSwirl.js'
+import {
+  isFineStructureShape,
+  isPlainOrbitalShape,
+  type OrbitalShape,
+  type SphericalShape,
+} from '../../orbital/orbitalShape.js'
 import type { OrbitalState } from '../../orbital/orbitalTransition.js'
 import {
   drawParticleUniforms,
   type ParticleUniforms,
 } from '../../orbital/particleUniforms.js'
-import { createShapeEvaluator } from '../../orbital/shapeMix.js'
+import {
+  createFieldEvaluator,
+  createShapeEvaluator,
+  type ParticleField,
+} from '../../orbital/shapeMix.js'
+import { spinUpSwirl } from '../../orbital/spinSwirl.js'
+import { unpolarizedSpinLabels } from '../../orbital/unpolarizedSpin.js'
 import { probabilityCurrentOmega } from '../../orbital/velocity.js'
 import { cutawayFeatherScale } from './cutaway.js'
 
@@ -25,12 +37,22 @@ export interface SphereStyle {
   cutaway?: boolean
   /** world-space band over which spheres shrink to zero approaching the cut */
   cutawayFeather?: number
+  /** slide spheres along world Y by distance × their direction (drawing only) */
+  separation?: Separation
+}
+
+/** A per-sphere shift along world Y, applied where spheres are written out. */
+export interface Separation {
+  /** world units for a direction of 1 */
+  distance: number
+  /** per particle, typically ±1 */
+  direction: ParticleField
 }
 
 export interface ParticleSwarm {
   /** per-particle random numbers, fixed for life; every orbital shape is computed from these */
   readonly uniforms: ParticleUniforms
-  /** move the particles to `state` and set their swirl from its m */
+  /** move the particles to `state` and set their swirl from its m and spin */
   setOrbitalState(state: OrbitalState): void
   /** spin every particle about the Y axis by its own angular velocity × speedScale */
   advance(speedScale: number): void
@@ -54,6 +76,9 @@ interface SwarmMotion {
  * The particles and their motion. Motion is a rigid spin about the Y axis, so
  * it's stored in cylindrical coordinates (ρ, φ, y); orbital shapes arrive in
  * spherical and spheres leave in cartesian.
+ *
+ * The frame is right-handed about +Y: increasing φ is a positive rotation
+ * about +Y, so positive m and spin up both point along world +Y.
  */
 export function createParticleSwarm({
   count,
@@ -62,6 +87,22 @@ export function createParticleSwarm({
 }: ParticleSwarmOptions): ParticleSwarm {
   const uniforms = drawParticleUniforms(count, rng)
   const evaluateShape = createShapeEvaluator(count)
+  const noSwirl = new Float32Array(count)
+  const spinLabels = unpolarizedSpinLabels(uniforms.uSpin)
+  const evaluateSpinSwirl = createFieldEvaluator(
+    count,
+    memoizeShapeField((shape) =>
+      isPlainOrbitalShape(shape) ? spinUpSwirl(shape, omegaSoftening) : noSwirl,
+    ),
+  )
+  const evaluateFineStructureSwirl = createFieldEvaluator(
+    count,
+    memoizeShapeField((shape) =>
+      isFineStructureShape(shape)
+        ? fineStructureSwirl(shape, omegaSoftening)
+        : noSwirl,
+    ),
+  )
   const motion: SwarmMotion = {
     count,
     rho: new Float32Array(count),
@@ -73,9 +114,19 @@ export function createParticleSwarm({
 
   return {
     uniforms,
-    setOrbitalState({ shape, m }) {
+    setOrbitalState({ shape, m, spin, unpolarized = 0 }) {
       placeOnShape(motion, evaluateShape(shape))
       setSwirl(motion, m, omegaSoftening)
+      if (spin !== 0) addSwirl(motion, spin, evaluateSpinSwirl(shape))
+      if (unpolarized !== 0) {
+        addLabelledSwirl(
+          motion,
+          unpolarized,
+          spinLabels,
+          evaluateSpinSwirl(shape),
+        )
+      }
+      addSwirl(motion, 1, evaluateFineStructureSwirl(shape))
     },
     advance(speedScale) {
       spin(motion, speedScale)
@@ -83,6 +134,25 @@ export function createParticleSwarm({
     writeSpheres(out, style) {
       writeSpheres(motion, out, style)
     },
+  }
+}
+
+/**
+ * A per-particle field of each orbital shape (such as the spin-up swirl),
+ * computed the first time it's asked for. Keyed by the shape's `r` array
+ * rather than the shape: intween clones the shape object as it tweens, but
+ * passes its typed arrays through untouched.
+ */
+function memoizeShapeField(
+  fieldOf: (shape: OrbitalShape) => ParticleField,
+): (shape: OrbitalShape) => ParticleField {
+  const cache = new WeakMap<ArrayLike<number>, ParticleField>()
+  return (shape) => {
+    const cached = cache.get(shape.r)
+    if (cached) return cached
+    const field = fieldOf(shape)
+    cache.set(shape.r, field)
+    return field
   }
 }
 
@@ -112,6 +182,29 @@ function setSwirl(
   }
 }
 
+/** ω += scale × swirl, per particle (e.g. spin × the spin-up spin term). */
+function addSwirl(
+  { count, omega }: SwarmMotion,
+  scale: number,
+  swirl: ParticleField,
+): void {
+  for (let i = 0; i < count; i += 1) {
+    omega[i]! += scale * swirl[i]!
+  }
+}
+
+/** ω += scale × label × swirl, per particle: each particle's own spin (±1). */
+function addLabelledSwirl(
+  { count, omega }: SwarmMotion,
+  scale: number,
+  labels: ParticleField,
+  swirl: ParticleField,
+): void {
+  for (let i = 0; i < count; i += 1) {
+    omega[i]! += scale * labels[i]! * swirl[i]!
+  }
+}
+
 function spin({ count, phi, omega }: SwarmMotion, speedScale: number): void {
   for (let i = 0; i < count; i += 1) {
     phi[i]! += speedScale * omega[i]!
@@ -126,12 +219,17 @@ function writeSpheres(
     radiusVariation = 0,
     cutaway = false,
     cutawayFeather = 0,
+    separation,
   }: SphereStyle,
 ): void {
   for (let i = 0; i < count; i += 1) {
+    // (ê_ρ, ê_φ, +Y) right-handed: φ turns +Z toward +X, hence z = -ρ sin φ
     const x = rho[i]! * Math.cos(phi[i]!)
-    const y = height[i]!
-    const z = rho[i]! * Math.sin(phi[i]!)
+    const shift = separation
+      ? separation.distance * separation.direction[i]!
+      : 0
+    const y = height[i]! + shift
+    const z = -rho[i]! * Math.sin(phi[i]!)
     const radius = sphereRadius * (1 + radiusVariation * radiusJitter[i]!)
     const feather = cutaway ? cutawayFeatherScale(y, z, cutawayFeather) : 1
     const o = i * SPHERE_STRIDE

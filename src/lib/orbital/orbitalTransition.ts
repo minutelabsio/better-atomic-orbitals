@@ -1,9 +1,11 @@
 import type { Easing } from 'intween'
 import {
+  combineLatest,
   distinctUntilChanged,
   filter,
   map,
   type Observable,
+  of,
   shareReplay,
   startWith,
   switchMap,
@@ -12,13 +14,14 @@ import {
 } from 'rxjs'
 import { smoothen } from '../rx/smoothen.js'
 import { memoizeLru } from '../util/memoizeLru.js'
+import {
+  type HydrogenState,
+  hydrogenStateKey,
+  isFineStructure,
+  isSameHydrogenState,
+} from './fineStructure.js'
 import { type OrbitalShapeOptions, orbitalShape } from './orbitalShape.js'
 import type { ParticleUniforms } from './particleUniforms.js'
-import {
-  isSameOrbital,
-  orbitalKey,
-  type QuantumNumbers,
-} from './quantumNumbers.js'
 import { mixShapes, type ShapeExpr } from './shapeMix.js'
 
 const DEFAULT_SHAPE_CACHE_SIZE = 8
@@ -29,10 +32,26 @@ const DEFAULT_SHAPE_CACHE_SIZE = 8
  * ω = m/ρ². Tweening m — rather than each particle's ω — keeps the motion
  * consistent with the shape at every instant: as ρ moves, ω follows; m → −m
  * slows the swirl to a stop and reverses it.
+ *
+ * `spin` is the spin projection on the axis (+1 up, −1 down, 0 off; fractional
+ * mid-transition) that scales the spin-current term. That term depends on the
+ * whole orbital, not just m, so it isn't recomputed from the in-between shape:
+ * each particle's spin ω is blended between the endpoint orbitals alongside
+ * the shape (see particleSwarm.ts).
+ *
+ * `unpolarized` (0 … 1, fractional mid-transition) is how much each particle's
+ * own fixed spin label scales that term instead (the spin setting "both"; see
+ * `unpolarizedSpin.ts`). Absent means 0.
+ *
+ * A fine-structure state's whole flow, orbital part included, comes from its
+ * shape the same way (it isn't a function of one m), so its `m` is 0 and a
+ * morph into or out of one fades the m/ρ² swirl against the blended field.
  */
 export interface OrbitalState {
   readonly shape: ShapeExpr
   readonly m: number
+  readonly spin: number
+  readonly unpolarized?: number
 }
 
 export interface MorphConfig {
@@ -42,7 +61,11 @@ export interface MorphConfig {
 }
 
 export interface OrbitalStatesOptions {
-  orbital$: Observable<QuantumNumbers>
+  orbital$: Observable<HydrogenState>
+  /** spin projection on the axis (see `spinProjection`); defaults to always 0 */
+  spin$?: Observable<number>
+  /** weight of each particle's own spin label (see `unpolarizedWeight`); defaults to always 0 */
+  unpolarized$?: Observable<number>
   config$: Observable<MorphConfig>
   uniforms: ParticleUniforms
   shapeOptions?: OrbitalShapeOptions
@@ -57,25 +80,33 @@ export interface OrbitalStatesOptions {
  */
 export function orbitalStates({
   orbital$,
+  spin$ = of(0),
+  unpolarized$ = of(0),
   config$,
   uniforms,
   shapeOptions,
   shapeCacheSize = DEFAULT_SHAPE_CACHE_SIZE,
 }: OrbitalStatesOptions): Observable<OrbitalState> {
   const shapeFor = memoizeLru(
-    (orbital: QuantumNumbers) => orbitalShape(orbital, uniforms, shapeOptions),
-    { size: shapeCacheSize, key: orbitalKey },
+    (orbital: HydrogenState) => orbitalShape(orbital, uniforms, shapeOptions),
+    { size: shapeCacheSize, key: hydrogenStateKey },
   )
-  const toTargetState = (orbital: QuantumNumbers): OrbitalState => ({
+  const toTargetState = ([orbital, spin, unpolarized]: [
+    HydrogenState,
+    number,
+    number,
+  ]): OrbitalState => ({
     shape: shapeFor(orbital),
-    m: orbital.m,
+    m: isFineStructure(orbital) ? 0 : orbital.m,
+    spin,
+    unpolarized,
   })
   // replayed so each morph pipeline (one per config) starts from the latest target
-  const target$ = orbital$.pipe(
-    distinctUntilChanged(isSameOrbital),
-    map(toTargetState),
-    shareReplay({ bufferSize: 1, refCount: true }),
-  )
+  const target$ = combineLatest([
+    orbital$.pipe(distinctUntilChanged(isSameHydrogenState)),
+    spin$.pipe(distinctUntilChanged()),
+    unpolarized$.pipe(distinctUntilChanged()),
+  ]).pipe(map(toTargetState), shareReplay({ bufferSize: 1, refCount: true }))
 
   return target$.pipe(
     take(1),
@@ -91,7 +122,10 @@ function morphsFrom(
   // the last state emitted, i.e. what is on screen: every morph starts here
   let current = initial
   const isNotCurrentTarget = (target: OrbitalState) =>
-    target.shape !== current.shape || target.m !== current.m
+    target.shape !== current.shape ||
+    target.m !== current.m ||
+    target.spin !== current.spin ||
+    target.unpolarized !== current.unpolarized
 
   return config$.pipe(
     switchMap((config) =>
@@ -112,5 +146,7 @@ function orbitalSchema(state: OrbitalState) {
   return {
     shape: { type: Object, value: state.shape, interpolator: mixShapes },
     m: state.m,
+    spin: state.spin,
+    unpolarized: state.unpolarized ?? 0,
   }
 }

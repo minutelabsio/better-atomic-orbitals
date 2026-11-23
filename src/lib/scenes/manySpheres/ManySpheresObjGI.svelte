@@ -2,13 +2,22 @@
 import type { Easing } from 'intween'
 import { getContext, onMount } from 'svelte'
 import * as THREE from 'three'
+import type { HydrogenState } from '../../orbital/fineStructure.js'
 import { orbitalStates } from '../../orbital/orbitalTransition.js'
+import {
+  type SpinSetting,
+  spinProjection,
+  unpolarizedWeight,
+} from '../../orbital/spinSetting.js'
 import { observe } from '../../rx/observe.svelte.js'
 import vertexShader from './manySpheres.vert.glsl'
 import displayShader from './manySpheresDisplay.frag.glsl'
 import objGIShader from './manySpheresObjGI.frag.glsl'
 import probeShader from './manySpheresProbe.frag.glsl'
+import { type SphereColoring, spinFieldOf } from './sphereColoring.js'
 import { createSphereGrid } from './sphereGrid.js'
+import { spinPaletteMatrix } from './spinPalette.js'
+import { separationAmounts } from './spinSeparation.js'
 
 const ctx = getContext<{
   scene: THREE.Scene
@@ -25,14 +34,15 @@ let {
   blend = 0.05,
   samples = 1,
   sphereColor = '#ec7813',
+  coloring = 'plain',
+  split = false,
   bgColor = '#33373d',
   cutaway = false,
   cutawayFeather = 0,
   sphereRadius = 0.012,
   radiusVariation = 0,
-  n = 1,
-  l = 0,
-  m = 0,
+  orbital = { n: 1, l: 0, m: 0 },
+  spin = 'off',
   speed = 0.001,
   morphDuration = 1500,
   morphEasing = 'cubicInOut',
@@ -43,14 +53,18 @@ let {
   blend?: number
   samples?: number
   sphereColor?: string
+  /** sphere colors: by measured or average spin (when the state has spin), or plain sphereColor */
+  coloring?: SphereColoring
+  /** slide spin-up and spin-down spheres apart along the axis */
+  split?: boolean
   bgColor?: string
   cutaway?: boolean
   cutawayFeather?: number
   sphereRadius?: number
   radiusVariation?: number
-  n?: number
-  l?: number
-  m?: number
+  /** an |n l m⟩ orbital or a fine-structure state */
+  orbital?: HydrogenState
+  spin?: SpinSetting
   speed?: number
   /** orbital-to-orbital morph duration, ms */
   morphDuration?: number
@@ -58,11 +72,14 @@ let {
 } = $props()
 
 // switch orbitals by morphing in place (no remount)
-const orbital$ = observe(() => ({ n, l, m }))
+const orbital$ = observe(() => orbital)
+const spin$ = observe(() => spinProjection(spin))
+const unpolarized$ = observe(() => unpolarizedWeight(spin))
 const morphConfig$ = observe(() => ({
   duration: morphDuration,
   easing: morphEasing,
 }))
+const split$ = observe(() => split)
 
 // reusable scratch colors; hex strings (sRGB) -> linear working values
 const albedoColor = new THREE.Color()
@@ -94,9 +111,18 @@ onMount(() => {
   const grid = createSphereGrid({ count, gridRes })
   const orbitalStateSub = orbitalStates({
     orbital$,
+    spin$,
+    unpolarized$,
     config$: morphConfig$,
     uniforms: grid.uniforms,
   }).subscribe((state) => grid.setOrbitalState(state))
+  let separation = 0
+  const separationSub = separationAmounts({
+    split$,
+    config$: morphConfig$,
+  }).subscribe((amount) => {
+    separation = amount
+  })
   const { width: sphereTexW, height: sphereTexH } = grid.spheres
   const gridUniforms = grid.shaderUniforms
 
@@ -106,6 +132,8 @@ onMount(() => {
     uCount: { value: count },
     uAlbedo: { value: new THREE.Vector3() },
     uBackground: { value: new THREE.Vector3() },
+    uColorBySpin: { value: coloring !== 'plain' },
+    uSpinPalette: { value: spinPaletteMatrix() },
     uIndirectHistory: { value: null as THREE.Texture | null },
     uBlend: { value: 1 },
     uFrame: { value: 0 },
@@ -127,6 +155,8 @@ onMount(() => {
     ...gridUniforms,
     uAlbedo: { value: new THREE.Vector3() },
     uBackground: { value: new THREE.Vector3() },
+    uColorBySpin: probeUniforms.uColorBySpin,
+    uSpinPalette: probeUniforms.uSpinPalette,
     uIndirect: { value: null as THREE.Texture | null },
   }
   const primaryMaterial = new THREE.ShaderMaterial({
@@ -186,10 +216,13 @@ onMount(() => {
       radiusVariation,
       cutawayFeather,
       speedScale: speed,
+      spinField: spinFieldOf(coloring) ?? 'measured',
+      separation,
     })
 
     albedoColor.set(sphereColor)
     bgColor3.set(bgColor)
+    probeUniforms.uColorBySpin.value = coloring !== 'plain'
     probeUniforms.uAlbedo.value.set(albedoColor.r, albedoColor.g, albedoColor.b)
     probeUniforms.uBackground.value.set(bgColor3.r, bgColor3.g, bgColor3.b)
     primaryUniforms.uAlbedo.value.set(
@@ -246,6 +279,7 @@ onMount(() => {
     indirectWrite.dispose()
     frameTarget.dispose()
     orbitalStateSub.unsubscribe()
+    separationSub.unsubscribe()
     grid.dispose()
   }
 })
