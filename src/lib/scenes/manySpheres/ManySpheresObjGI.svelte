@@ -11,6 +11,7 @@ import displayShader from './manySpheresDisplay.frag.glsl'
 import objGIShader from './manySpheresObjGI.frag.glsl'
 import probeShader from './manySpheresProbe.frag.glsl'
 import { createSphereGrid } from './sphereGrid.js'
+import { spinPaletteMatrix } from './spinPalette.js'
 
 const ctx = getContext<{
   scene: THREE.Scene
@@ -27,6 +28,7 @@ let {
   blend = 0.05,
   samples = 1,
   sphereColor = '#ec7813',
+  colorBySpin = false,
   bgColor = '#33373d',
   cutaway = false,
   cutawayFeather = 0,
@@ -44,6 +46,8 @@ let {
   blend?: number
   samples?: number
   sphereColor?: string
+  /** color each sphere by its spin direction (when the state has spin) instead of sphereColor */
+  colorBySpin?: boolean
   bgColor?: string
   cutaway?: boolean
   cutawayFeather?: number
@@ -109,6 +113,8 @@ onMount(() => {
     uCount: { value: count },
     uAlbedo: { value: new THREE.Vector3() },
     uBackground: { value: new THREE.Vector3() },
+    uColorBySpin: { value: colorBySpin },
+    uSpinPalette: { value: spinPaletteMatrix() },
     uIndirectHistory: { value: null as THREE.Texture | null },
     uBlend: { value: 1 },
     uFrame: { value: 0 },
@@ -130,6 +136,8 @@ onMount(() => {
     ...gridUniforms,
     uAlbedo: { value: new THREE.Vector3() },
     uBackground: { value: new THREE.Vector3() },
+    uColorBySpin: probeUniforms.uColorBySpin,
+    uSpinPalette: probeUniforms.uSpinPalette,
     uIndirect: { value: null as THREE.Texture | null },
   }
   const primaryMaterial = new THREE.ShaderMaterial({
@@ -193,6 +201,7 @@ onMount(() => {
 
     albedoColor.set(sphereColor)
     bgColor3.set(bgColor)
+    probeUniforms.uColorBySpin.value = colorBySpin
     probeUniforms.uAlbedo.value.set(albedoColor.r, albedoColor.g, albedoColor.b)
     probeUniforms.uBackground.value.set(bgColor3.r, bgColor3.g, bgColor3.b)
     primaryUniforms.uAlbedo.value.set(

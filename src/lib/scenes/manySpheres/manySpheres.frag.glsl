@@ -12,6 +12,7 @@ uniform sampler2D uSpherePos;   // RGBA32F: xyz centre, w radius
 uniform sampler2D uCellRange;   // RGBA32F: r offset, g count
 uniform sampler2D uIndexList;   // R32F: sphere indices grouped by cell
 uniform int uSpherePosTexW;
+uniform int uSphereTexH;
 uniform int uCellRangeTexW;
 uniform int uIndexListTexW;
 uniform int uGridRes;
@@ -20,6 +21,12 @@ uniform float uCellSize;
 
 uniform vec3 uAlbedo;
 uniform vec3 uBackground;
+
+// "color by spin": each sphere's spin along the axis, through a palette
+uniform sampler2D uSphereSpin;  // R32F, same layout as uSpherePos
+uniform bool uColorBySpin;
+uniform bool uSpinDefined;      // false for a spinless state: keep uAlbedo
+uniform mat3 uSpinPalette;      // columns: up, sideways, down (linear)
 
 // --- temporal accumulation ---
 uniform sampler2D uHistory;
@@ -34,6 +41,8 @@ uniform bool uIndirectEnabled; // false = direct lighting only (no bounce / colo
 #pragma glslify: directIrradiance = require(./shared/directIrradiance.glsl)
 #pragma glslify: skyColor = require(./shared/skyColor.glsl)
 #pragma glslify: keyLightDir = require(./shared/keyLightDir.glsl)
+#pragma glslify: spinPalette = require(./shared/spinPalette.glsl)
+#pragma glslify: sphereTexelUv = require(./shared/sphereTexelUv.glsl)
 
 #define SAMPLES 1
 #define SHADOWS 1   // 1 = trace a shadow ray for the key light (contact shadows)
@@ -44,9 +53,17 @@ GridParams gridParams() {
     uSpherePosTexW, uCellRangeTexW, uIndexListTexW);
 }
 
+// a sphere's own colour: the uniform albedo, or its spin tilt in the palette
+vec3 albedoOf(int index) {
+  if (!(uColorBySpin && uSpinDefined)) return uAlbedo;
+  vec2 uv = sphereTexelUv(index, uSpherePosTexW, uSphereTexH);
+  return spinPalette(texture(uSphereSpin, uv).r, uSpinPalette);
+}
+
 // full shade of a primary hit: direct diffuse + one diffuse bounce (color bleed)
-vec3 shade(vec3 ro, vec3 rd, float t, vec3 center, inout uint seed) {
+vec3 shade(vec3 ro, vec3 rd, float t, vec3 center, int index, inout uint seed) {
   GridParams g = gridParams();
+  vec3 albedo = albedoOf(index);
   vec3 hp = ro + rd * t;
   vec3 n = normalize(hp - center);
 
@@ -61,7 +78,7 @@ vec3 shade(vec3 ro, vec3 rd, float t, vec3 center, inout uint seed) {
     keyVis = st > 0.0 ? 0.0 : 1.0;
   }
 #endif
-  vec3 direct = uAlbedo * directIrradiance(n, keyVis);
+  vec3 direct = albedo * directIrradiance(n, keyVis);
 
   // one diffuse bounce: gather neighbour's lit colour (color bleeding).
   // randomize on  -> stochastic cosine-weighted sample (noisy, denoised over time)
@@ -77,12 +94,12 @@ vec3 shade(vec3 ro, vec3 rd, float t, vec3 center, inout uint seed) {
     if (bt > 0.0) {
       vec3 bhp = bo + bdir * bt;
       vec3 bn = normalize(bhp - bcenter);
-      Li = uAlbedo * directIrradiance(bn, 1.0);
+      Li = albedoOf(bidx) * directIrradiance(bn, 1.0);
     } else {
       Li = skyColor(bdir, uBackground);
     }
     // Lambertian cosine-weighted estimator: cos/pi and pi/cos cancel
-    indirect = uAlbedo * Li;
+    indirect = albedo * Li;
   }
 
   return direct + indirect;
@@ -109,7 +126,7 @@ void main() {
   } else {
     color = vec3(0.0);
     for (int i = 0; i < SAMPLES; i++) {
-      color += shade(ro, rd, t, center, seed);
+      color += shade(ro, rd, t, center, centerIdx, seed);
     }
     color /= float(SAMPLES);
   }

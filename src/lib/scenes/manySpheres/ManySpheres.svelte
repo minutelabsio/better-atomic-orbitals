@@ -10,6 +10,7 @@ import fragmentShader from './manySpheres.frag.glsl'
 import vertexShader from './manySpheres.vert.glsl'
 import displayShader from './manySpheresDisplay.frag.glsl'
 import { createSphereGrid } from './sphereGrid.js'
+import { spinPaletteMatrix } from './spinPalette.js'
 
 const ctx = getContext<{
   scene: THREE.Scene
@@ -27,6 +28,7 @@ let {
   randomize = false,
   indirect = true,
   sphereColor = '#ec7813',
+  colorBySpin = false,
   bgColor = '#33373d',
   cutaway = false,
   cutawayFeather = 0,
@@ -45,6 +47,8 @@ let {
   randomize?: boolean
   indirect?: boolean
   sphereColor?: string
+  /** color each sphere by its spin direction (when the state has spin) instead of sphereColor */
+  colorBySpin?: boolean
   bgColor?: string
   cutaway?: boolean
   cutawayFeather?: number
@@ -96,6 +100,8 @@ onMount(() => {
     ...grid.shaderUniforms,
     uAlbedo: { value: new THREE.Vector3() },
     uBackground: { value: new THREE.Vector3() },
+    uColorBySpin: { value: colorBySpin },
+    uSpinPalette: { value: spinPaletteMatrix() },
     uHistory: { value: null as THREE.Texture | null },
     uBlend: { value: 1 },
     uFrame: { value: 0 },
@@ -193,6 +199,7 @@ onMount(() => {
     uniforms.uRandomize.value = randomize
     uniforms.uIndirectEnabled.value = indirect
     albedoColor.set(sphereColor)
+    uniforms.uColorBySpin.value = colorBySpin
     uniforms.uAlbedo.value.set(albedoColor.r, albedoColor.g, albedoColor.b)
     bgColor3.set(bgColor)
     uniforms.uBackground.value.set(bgColor3.r, bgColor3.g, bgColor3.b)

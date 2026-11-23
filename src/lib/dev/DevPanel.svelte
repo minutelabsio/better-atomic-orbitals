@@ -85,6 +85,7 @@ const percent = (v: number) => `±${Math.round(v * 100)}%`
       bind:value={settings.radiusVariation}
     />
     <Color label="sphere" bind:value={settings.sphereColor} />
+    <Checkbox label="color by spin" bind:value={settings.colorBySpin} />
     <Color label="background" bind:value={settings.bgColor} />
   </Folder>
 

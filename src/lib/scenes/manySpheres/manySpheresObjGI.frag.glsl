@@ -28,6 +28,12 @@ uniform float uCellSize;
 uniform vec3 uAlbedo;
 uniform vec3 uBackground;
 
+// "color by spin": each sphere's spin along the axis, through a palette
+uniform sampler2D uSphereSpin;  // R32F, same layout as uSpherePos
+uniform bool uColorBySpin;
+uniform bool uSpinDefined;      // false for a spinless state: keep uAlbedo
+uniform mat3 uSpinPalette;      // columns: up, sideways, down (linear)
+
 // per-sphere accumulated indirect, indexed by sphere index
 uniform sampler2D uIndirect;
 
@@ -36,6 +42,8 @@ uniform sampler2D uIndirect;
 #pragma glslify: directIrradiance = require(./shared/directIrradiance.glsl)
 #pragma glslify: skyColor = require(./shared/skyColor.glsl)
 #pragma glslify: keyLightDir = require(./shared/keyLightDir.glsl)
+#pragma glslify: spinPalette = require(./shared/spinPalette.glsl)
+#pragma glslify: sphereTexelUv = require(./shared/sphereTexelUv.glsl)
 
 #define SHADOWS 1
 #define EPS 1e-4
@@ -43,6 +51,13 @@ uniform sampler2D uIndirect;
 GridParams gridParams() {
   return GridParams(uGridRes, uBoundMin, uCellSize,
     uSpherePosTexW, uCellRangeTexW, uIndexListTexW);
+}
+
+// a sphere's own colour: the uniform albedo, or its spin tilt in the palette
+vec3 albedoOf(int index) {
+  if (!(uColorBySpin && uSpinDefined)) return uAlbedo;
+  vec2 uv = sphereTexelUv(index, uSpherePosTexW, uSphereTexH);
+  return spinPalette(texture(uSphereSpin, uv).r, uSpinPalette);
 }
 
 // Fetch a per-sphere texel. Uses texture() (not texelFetch) with a nearest-
@@ -83,7 +98,7 @@ void main() {
       keyVis = st > 0.0 ? 0.0 : 1.0;
     }
 #endif
-    vec3 direct = uAlbedo * directIrradiance(n, keyVis);
+    vec3 direct = albedoOf(idx) * directIrradiance(n, keyVis);
     vec3 indirect = fetchIndirect(idx);
     color = direct + indirect;
   }

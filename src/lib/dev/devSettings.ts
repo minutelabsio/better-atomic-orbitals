@@ -22,6 +22,8 @@ export interface DevSettings {
   radius: number
   radiusVariation: number
   sphereColor: string
+  /** color spheres by their spin direction instead of sphereColor */
+  colorBySpin: boolean
   bgColor: string
 }
 
@@ -43,5 +45,6 @@ export const defaultDevSettings = (): DevSettings => ({
   radius: 0.012,
   radiusVariation: 0,
   sphereColor: '#f1921f',
+  colorBySpin: false,
   bgColor: '#ffffff',
 })
