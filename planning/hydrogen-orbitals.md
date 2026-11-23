@@ -23,6 +23,8 @@ modes (§5), multi-orbital layout (§6).
   `grid.reseed(n,l,m)` via a `$effect` — **no remount** (orbital is not in the `{#key}`).
 - **[prototype] Spin current (§2b).** Pauli spin term added to ω, off by default;
   `?spin=up|down` or the dev panel's spin list.
+- **[prototype] Fine structure (§2c).** Spin–orbit states |n l j m_j⟩ in the orbital
+  list and as `?o=2p3/2m1/2`; dev panel "color by spin" colors spheres by spin tilt.
 - **[todo] Size (§3), colour (§4), cutaway modes (§5), multi-orbital layout (§6).**
 
 ### Coordinate plan (decided)
@@ -169,10 +171,55 @@ Decisions:
   matters for labels, and for the tilted-axis follow-on, which must express s in the
   same right-handed frame as the gradient.
 
-Follow-ons this is shaped for (not built): spin–orbit fine-structure spinors (s varies in
-space: add ½∇×s to `spinCurrentVelocity`'s result, and ∇ln of the spinor density), and a
+Follow-ons this is shaped for: spin–orbit fine-structure spinors (built, §2c), and a
 tilted/precessing spin axis (call `spinCurrentVelocity` with the full s; the flow stops
 being azimuthal, so the per-frame motion would need a 3-D integrator).
+
+### 2c. Fine structure — spin–orbit states (prototype, `?o=2p3/2m1/2`)
+
+A state |n l j m_j⟩ (j = l ± ½) is a Clebsch–Gordan mix of |n l m_j−½⟩ spin up and
+|n l m_j+½⟩ spin down with one shared R_nl (`clebschGordan.ts`, Condon–Shortley phases;
+coefficients checked against Sakurai 3.8.64 and Griffiths table 4.8). What follows from it,
+and where it lives:
+
+- **Shape.** |ψ|² still separates and is axially symmetric, so sampling is unchanged with a
+  new polar density (`fineStructureDensity.ts`). Every j = ½ state is spherical: 2p1/2
+  samples exactly like 2s.
+- **Flow.** The full Pauli current, orbital and spin parts together, is still purely
+  azimuthal, so storage and the per-frame loop are unchanged. `fineStructureCurrent.ts`
+  writes it as the weighted sum of each component's own flow as a pure spin-up/-down
+  orbital (reusing `logAmplitudeGradient`, `axialSpinCurrentOmega` and the same softening)
+  plus a cross term from the sideways spin; a stretched state (m_j = ±(l+½)) is therefore
+  exactly the §2b orbital + spin term. A fine-structure shape carries this whole ω as a
+  per-particle field; its `OrbitalState.m` is 0 and the spin setting doesn't apply to it.
+- **Spin texture.** s = ψ†σψ/ψ†ψ lies in the meridional plane and depends on θ alone
+  (`spinDirection.ts`), so each particle's tilt is fixed for life; "color by spin" maps it
+  through a three-stop palette (`spinPalette.ts`).
+- **Checks.** `fineStructureCurrent.test.ts` compares against Colijn & Vrscay
+  (quant-ph/0304198) Table 1, all five rows and their −m_j mirrors, and against a
+  brute-force current from finite differences of the complex spinor (hand-written R_nl,
+  Y_lm tables), which also confirms there's no flow off the azimuth. Table 1 agrees
+  exactly; no typo found in it.
+
+Decisions:
+
+- **Handedness.** Everything is computed in the right-handed physics frame (ê_ρ, ê_φ, ê_axis)
+  where positive m_j circulates with increasing φ, and ω drives the swarm's φ as m/ρ² does,
+  so the mirror placement of §2b ("Axis handedness") applies unchanged: positive m_j
+  circulates about world −Y. "Up" in the palette is spin along the axis positive m
+  circulates about (world −Y), the same convention as §2b's spin up.
+- **Renderer.** One float per sphere (spin along the axis) in a one-channel texture laid out
+  like the sphere texture, uploaded only when the state changes; the shaders map it to a
+  color by tilt angle. With the toggle off, or for a spinless state (plain orbital, spin
+  off), the uniform sphere color is used. In the object-space GI probe a bounce takes the
+  neighbour's own color, so color bleeding still works; both renderers support it.
+- **Morphs.** Shapes morph as usual. The fine-structure ω field blends between endpoints
+  like the §2b spin term while the m/ρ² term fades with the tweened m, so speeds change
+  smoothly but aren't the current of any in-between state. Colors don't blend: they snap
+  to the nearer end of the morph (`dominantShape`).
+- **Picker.** All fine-structure states up to n = 3 are listed after the |n l m⟩ orbitals;
+  links take any n ≤ MAX_N.
+
 
 ### 3. Size — `size ∝ ⟨r⟩^points_exponent`
 
